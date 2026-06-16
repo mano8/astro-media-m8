@@ -1,0 +1,88 @@
+{
+  "name": "@fa-m8/astro-media-m8",
+  "version": "0.1.0-alpha.1",
+  "description": "Astro integration and headless client for media-service-m8.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mano8/astro-media-m8.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "astro-integration",
+    "astro",
+    "media",
+    "uploads",
+    "media-service-m8"
+  ],
+  "files": [
+    "dist",
+    "src/routes",
+    "src/scaffold/styles",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/src/integration.js",
+    "./api": "./dist/src/runtime/api/index.js",
+    "./client": "./dist/src/runtime/client.js",
+    "./schemas": "./dist/src/runtime/schemas.js",
+    "./auth-adapter": "./dist/src/runtime/authAdapter.js",
+    "./upload": "./dist/src/runtime/upload/index.js",
+    "./hooks": "./dist/src/runtime/hooks/index.js",
+    "./react": "./dist/src/runtime/react/index.js",
+    "./default-ui": "./dist/src/runtime/react/default-ui/index.js",
+    "./routes": "./dist/src/runtime/routes.js",
+    "./routes/upload.astro": "./src/routes/upload.astro",
+    "./routes/library.astro": "./src/routes/library.astro",
+    "./routes/object/[id].astro": "./src/routes/object/[id].astro",
+    "./routes/presets.astro": "./src/routes/presets.astro",
+    "./routes/admin/media.astro": "./src/routes/admin/media.astro",
+    "./middleware": "./dist/src/middleware.js",
+    "./internal-server": "./dist/src/runtime/api/internal.server.js",
+    "./compatibility": "./dist/src/runtime/compatibility.js"
+  },
+  "types": "./dist/src/integration.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:unit": "vitest run"
+  },
+  "peerDependencies": {
+    "astro": "^5.0.0 || ^6.0.0",
+    "@fa-m8/astro-auth-m8": "^0.1.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@vitest/coverage-v8": "^4.1.9",
+    "astro": "^6.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.9",
+    "zod": "^4.0.0"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
+  "mediaServiceM8": {
+    "contract": "media-service-m8@1.0",
+    "testedServiceVersion": "0.0.8",
+    "serviceVersionRange": ">=0.0.8 <0.1.0"
+  }
+}
