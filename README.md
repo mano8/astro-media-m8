@@ -6,8 +6,31 @@ media contract, a presigned-upload controller, optional React provider/hooks,
 and injectable starter routes — so any Astro stack can drive media without
 re-implementing the contract.
 
-Pinned to `media-service-m8@1.0` (supported range `>=1.0.0 <2.0.0`; see
-`mediaServiceM8` in `package.json`).
+Pinned to `media-service-m8@0.0` (supported service-version range
+`>=0.0.8 <0.1.0`; see `mediaServiceM8` in `package.json`).
+
+## Backend contract
+
+This package targets the `media-service-m8@0.0` API contract and was tested
+against `media-service-m8` service version `0.0.8`. Supported backend service
+versions are `>=0.0.8 <0.1.0` (the floor is the first release exposing the
+discovery route). The contract major.minor tracks the pre-1.0 package line.
+
+Compatibility helpers are exported from `@fa-m8/astro-media-m8/compatibility`.
+`media-service-m8` (≥ 0.0.8) exposes a public `GET {API_PREFIX}/meta` route
+returning a `ServiceMeta` payload — pass it straight to the assert:
+
+```ts
+import { assertMediaServiceM8Compatibility } from "@fa-m8/astro-media-m8/compatibility";
+
+const meta = await fetch(`${base}/media/meta`).then((r) => r.json());
+// meta = { service, version, api_version, contract: { name, version, range } }
+assertMediaServiceM8Compatibility(meta); // reads nested contract.version + version
+```
+
+The helper also accepts flat fields (`media_contract_version` /
+`contract_version` / `service_version`) for backends that surface metadata
+elsewhere.
 
 ## Install
 
