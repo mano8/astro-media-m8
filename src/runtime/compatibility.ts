@@ -1,5 +1,7 @@
 export const MEDIA_SERVICE_M8_CONTRACT_ID = "media-service-m8";
-export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "1.0";
+// Pre-1.0 contract: tracks the service package major.minor (0.0.x), not an
+// aspirational 1.0 — kept in lockstep with media-service-m8's CONTRACT_VERSION.
+export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "0.0";
 export const MEDIA_SERVICE_M8_CONTRACT = `${MEDIA_SERVICE_M8_CONTRACT_ID}@${MEDIA_SERVICE_M8_CONTRACT_VERSION}` as const;
 // 0.0.8 is the first media-service-m8 release exposing GET {API_PREFIX}/meta;
 // earlier versions have no discovery route for this plugin to read.
