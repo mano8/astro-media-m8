@@ -1,0 +1,37 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "fa-m8-media",
+  "homepage": "https://github.com/mano8/astro-media-m8",
+  "items": [
+    {
+      "name": "data-table",
+      "type": "registry:component",
+      "title": "Data Table",
+      "description": "Generic pure-shadcn data table (sorting, filtering, pagination) built on @tanstack/react-table."
+    },
+    {
+      "name": "media-storage-chart",
+      "type": "registry:component",
+      "title": "Media Storage Chart",
+      "description": "shadcn chart preset (recharts) for media storage bytes per category, with a base-1024 byte humanizer."
+    },
+    {
+      "name": "media-dashboard-overview",
+      "type": "registry:component",
+      "title": "Media Admin Dashboard Overview",
+      "description": "Media storage dashboard (stat cards + chart + subscriptions table) driven by the package's useMediaAdmin hook. Requires @fa-m8/astro-media-m8 installed."
+    },
+    {
+      "name": "media-maintenance-panel",
+      "type": "registry:component",
+      "title": "Media Admin Maintenance Panel",
+      "description": "Media admin danger zone (purge-stale / repair-orphans / purge-expired), each behind a shadcn alert-dialog confirmation, driven by useMediaAdmin. Requires @fa-m8/astro-media-m8 installed."
+    },
+    {
+      "name": "admin-media-dashboard",
+      "type": "registry:component",
+      "title": "Admin Media Dashboard",
+      "description": "Media admin view whose first/landing tab is the storage dashboard and whose destructive ops live in a guarded Maintenance tab; wraps the package's MediaProvider + RequireSuperuser. Requires @fa-m8/astro-media-m8 (and a fa-auth-m8 token adapter) installed."
+    }
+  ]
+}

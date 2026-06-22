@@ -1,8 +1,10 @@
 import { useCallback, useState } from "react";
 import {
+  deleteSubscription,
   getOrphans,
   getStaleUploads,
   getStorageStats,
+  listSubscriptions,
   purgeExpired,
   purgeStaleUploads,
   repairOrphans
@@ -14,7 +16,8 @@ import type {
   OrphanReport,
   PurgeStaleResponse,
   StaleUploadsResponse,
-  StorageStatsResponse
+  StorageStatsResponse,
+  SubscriptionListResponse
 } from "../schemas.js";
 
 export type UseMediaAdmin = {
@@ -22,6 +25,7 @@ export type UseMediaAdmin = {
   stats: StorageStatsResponse | null;
   stale: StaleUploadsResponse | null;
   orphans: OrphanReport | null;
+  subscriptions: SubscriptionListResponse | null;
   loading: boolean;
   error: unknown;
   loadStats: () => Promise<void>;
@@ -30,6 +34,8 @@ export type UseMediaAdmin = {
   loadOrphans: () => Promise<void>;
   repair: (confirm: boolean) => Promise<OrphanReport>;
   purgeExpiredObjects: () => Promise<HardPurgeResponse>;
+  loadSubscriptions: () => Promise<void>;
+  removeSubscription: (id: string) => Promise<void>;
 };
 
 /**
@@ -41,6 +47,7 @@ export function useMediaAdmin(): UseMediaAdmin {
   const [stats, setStats] = useState<StorageStatsResponse | null>(null);
   const [stale, setStale] = useState<StaleUploadsResponse | null>(null);
   const [orphans, setOrphans] = useState<OrphanReport | null>(null);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionListResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -67,6 +74,7 @@ export function useMediaAdmin(): UseMediaAdmin {
     stats,
     stale,
     orphans,
+    subscriptions,
     loading,
     error,
     loadStats: () => guard(getStorageStats).then(setStats),
@@ -74,6 +82,19 @@ export function useMediaAdmin(): UseMediaAdmin {
     purgeStale: () => guard(purgeStaleUploads),
     loadOrphans: () => guard(getOrphans).then(setOrphans),
     repair: (confirm: boolean) => guard(() => repairOrphans(confirm)),
-    purgeExpiredObjects: () => guard(purgeExpired)
+    purgeExpiredObjects: () => guard(purgeExpired),
+    loadSubscriptions: () => guard(listSubscriptions).then(setSubscriptions),
+    removeSubscription: (id: string) =>
+      guard(async () => {
+        await deleteSubscription(id);
+        setSubscriptions((current) =>
+          current
+            ? {
+                count: Math.max(0, current.count - 1),
+                items: current.items.filter((item) => item.id !== id)
+              }
+            : current
+        );
+      })
   };
 }
