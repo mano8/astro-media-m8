@@ -1,6 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDownloadUrl } from "../api/objects.js";
 import { resolveShare } from "../api/shares.js";
+import { mediaKeys } from "../queryKeys.js";
 import type { DownloadUrlResponse } from "../schemas.js";
 
 export type UseDownloadUrl = {
@@ -14,31 +16,36 @@ export type UseDownloadUrl = {
 };
 
 export function useDownloadUrl(objectId: string | null): UseDownloadUrl {
-  const [data, setData] = useState<DownloadUrlResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-
-  const run = useCallback(async (task: () => Promise<DownloadUrlResponse>) => {
-    setLoading(true);
-    try {
-      const result = await task();
-      setData(result);
-      setError(null);
+  const queryClient = useQueryClient();
+  const requestMutation = useMutation<DownloadUrlResponse, unknown, void>({
+    mutationKey: objectId ? mediaKeys.downloadUrl(objectId) : ["media", "download-url", ""],
+    mutationFn: async () => {
+      if (!objectId) throw new Error("No object selected");
+      const result = await getDownloadUrl(objectId);
+      queryClient.setQueryData(mediaKeys.downloadUrl(objectId), result);
       return result;
-    } catch (err) {
-      setError(err);
-      throw err;
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  });
+  const resolveMutation = useMutation<DownloadUrlResponse, unknown, string>({
+    mutationFn: (token) => resolveShare(token)
+  });
 
   const request = useCallback(() => {
     if (!objectId) throw new Error("No object selected");
-    return run(() => getDownloadUrl(objectId));
-  }, [objectId, run]);
+    return requestMutation.mutateAsync();
+  }, [objectId, requestMutation]);
 
-  const resolve = useCallback((token: string) => run(() => resolveShare(token)), [run]);
+  const resolve = useCallback((token: string) => resolveMutation.mutateAsync(token), [resolveMutation]);
 
-  return { data, loading, error, request, resolve };
+  const requestIsLatest = requestMutation.submittedAt >= resolveMutation.submittedAt;
+  const latestData = requestIsLatest ? requestMutation.data : resolveMutation.data;
+  const latestError = requestIsLatest ? requestMutation.error : resolveMutation.error;
+
+  return {
+    data: latestData ?? null,
+    loading: requestMutation.isPending || resolveMutation.isPending,
+    error: latestError ?? null,
+    request,
+    resolve
+  };
 }

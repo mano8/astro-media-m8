@@ -25,11 +25,82 @@
   margin-bottom: 1rem;
 }
 
-.fa-media-panel label {
+.fa-media-panel fieldset {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 0;
+  padding: 1rem;
+  border: 1px solid var(--fa-media-border, #d0d7de);
+  border-radius: 0.5rem;
+}
+
+.fa-media-panel legend {
+  padding: 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.fa-media-panel label:has(input[type="checkbox"]),
+.fa-media-panel label:has(input[type="radio"]) {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fa-media-field-control {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  min-width: 12rem;
+  max-width: 100%;
+}
+
+.fa-media-control {
+  box-sizing: border-box;
+  height: 2rem;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--fa-media-input-border, var(--fa-media-border, #d0d7de));
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.625rem;
+  font: inherit;
+}
+
+.fa-media-control option {
+  background-color: var(--fa-media-popover-bg, Canvas);
+  color: var(--fa-media-popover-fg, CanvasText);
+}
+
+.fa-media-control::file-selector-button {
+  height: 1.5rem;
+  margin: -0.125rem 0.5rem -0.125rem -0.125rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.fa-media-panel button {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--fa-media-input-border, var(--fa-media-border, #d0d7de));
+  border-radius: 0.5rem;
+  background: var(--fa-media-button-bg, Canvas);
+  padding: 0.25rem 0.75rem;
+  color: var(--fa-media-button-fg, CanvasText);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fa-media-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .fa-media-table {

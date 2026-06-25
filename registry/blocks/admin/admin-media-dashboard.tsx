@@ -52,12 +52,12 @@ function AdminMediaShell({ labels }: { labels: AdminMediaDashboardLabels }) {
   return (
     <RequireSuperuser
       fallback={
-        <div className="mx-auto w-full max-w-md py-10 text-center text-sm text-muted-foreground">
+        <div className="not-content mx-auto w-full max-w-md py-10 text-center text-sm text-muted-foreground">
           {labels.forbidden}
         </div>
       }
     >
-      <Tabs defaultValue="dashboard" className="mx-auto w-full max-w-6xl space-y-4">
+      <Tabs defaultValue="dashboard" className="not-content mx-auto w-full max-w-6xl space-y-4">
         <TabsList className="flex h-auto flex-wrap justify-start gap-1">
           <TabsTrigger value="dashboard" className="gap-2">
             <LayoutDashboard className="size-4" />

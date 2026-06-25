@@ -11,6 +11,10 @@ const CATEGORIES: MediaCategory[] = [
   "receipt"
 ];
 const VISIBILITIES: MediaVisibility[] = ["private", "public", "tenant", "sensitive"];
+const inputClassName =
+  "fa-media-control h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40";
+const labelClassName =
+  "fa-media-label flex items-center gap-2 pb-2 text-sm leading-none font-medium select-none";
 
 export function MediaUploadDropzone({
   defaultCategory = "asset",
@@ -41,31 +45,31 @@ export function MediaUploadDropzone({
   const pct = progress?.fraction != null ? Math.round(progress.fraction * 100) : null;
 
   return (
-    <section className="fa-media-panel">
+    <section className="not-content fa-media-panel">
       <h2>Upload media</h2>
       <div className="fa-media-field">
-        <label>
-          Category
-          <select value={category} onChange={(event) => setCategory(event.currentTarget.value as MediaCategory)}>
+        <div className="fa-media-field-control">
+          <label className={labelClassName} htmlFor="fa-media-upload-category">Category</label>
+          <select id="fa-media-upload-category" className={inputClassName} value={category} onChange={(event) => setCategory(event.currentTarget.value as MediaCategory)}>
             {CATEGORIES.map((value) => (
               <option key={value} value={value}>
                 {value}
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Visibility
-          <select value={visibility} onChange={(event) => setVisibility(event.currentTarget.value as MediaVisibility)}>
+        </div>
+        <div className="fa-media-field-control">
+          <label className={labelClassName} htmlFor="fa-media-upload-visibility">Visibility</label>
+          <select id="fa-media-upload-visibility" className={inputClassName} value={visibility} onChange={(event) => setVisibility(event.currentTarget.value as MediaVisibility)}>
             {VISIBILITIES.map((value) => (
               <option key={value} value={value}>
                 {value}
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
-      <input type="file" disabled={busy} onChange={onPick} />
+      <input className={inputClassName} type="file" disabled={busy} onChange={onPick} />
       {progress ? (
         <div className="fa-media-progress" role="status">
           <span>{progress.state}</span>

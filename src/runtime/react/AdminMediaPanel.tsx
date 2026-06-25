@@ -2,12 +2,15 @@ import { useState } from "react";
 import { useMediaAdmin } from "../hooks/useMediaAdmin.js";
 import { RequireSuperuser } from "./RequireSuperuser.js";
 
+const checkboxLabelClassName =
+  "fa-media-label flex items-center gap-2 pb-2 text-sm leading-none font-medium select-none";
+
 function AdminMediaPanelInner() {
   const admin = useMediaAdmin();
   const [confirmRepair, setConfirmRepair] = useState(false);
 
   return (
-    <section className="fa-media-panel">
+    <section className="not-content fa-media-panel">
       <h2>Storage administration</h2>
       {admin.error ? <p role="alert">{admin.error instanceof Error ? admin.error.message : "Admin request failed"}</p> : null}
 
@@ -41,7 +44,7 @@ function AdminMediaPanelInner() {
         <button type="button" disabled={admin.loading} onClick={() => void admin.purgeStale()}>
           Purge stale uploads
         </button>
-        <label>
+        <label className={checkboxLabelClassName}>
           <input type="checkbox" checked={confirmRepair} onChange={(event) => setConfirmRepair(event.currentTarget.checked)} />
           I understand repairing deletes storage-orphan bytes
         </label>

@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { deleteObject, getObject, updateObject } from "../api/objects.js";
+import { mediaKeys } from "../queryKeys.js";
 import type { MediaObjectPublic, MediaObjectUpdate } from "../schemas.js";
+
+type UpdateObjectMutation = UseMutationResult<MediaObjectPublic, unknown, MediaObjectUpdate>;
+type RemoveObjectMutation = UseMutationResult<void, unknown, void>;
 
 export type UseMediaObject = {
   object: MediaObjectPublic | null;
@@ -9,45 +14,63 @@ export type UseMediaObject = {
   reload: () => Promise<void>;
   update: (patch: MediaObjectUpdate) => Promise<MediaObjectPublic>;
   remove: () => Promise<void>;
+  updateMutation: UpdateObjectMutation;
+  removeMutation: RemoveObjectMutation;
 };
 
 export function useMediaObject(objectId: string | null): UseMediaObject {
-  const [object, setObject] = useState<MediaObjectPublic | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<unknown>(null);
+  const queryClient = useQueryClient();
+  const queryKey = mediaKeys.object(objectId ?? "");
+  const query = useQuery<MediaObjectPublic | null, unknown>({
+    queryKey,
+    queryFn: () => (objectId ? getObject(objectId) : null),
+    enabled: Boolean(objectId)
+  });
 
   const reload = useCallback(async () => {
     if (!objectId) return;
-    setLoading(true);
-    try {
-      setObject(await getObject(objectId));
-      setError(null);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [objectId]);
+    await query.refetch();
+  }, [objectId, query]);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  const update = useCallback(
-    async (patch: MediaObjectUpdate) => {
+  const updateMutation = useMutation<MediaObjectPublic, unknown, MediaObjectUpdate>({
+    mutationFn: async (patch) => {
       if (!objectId) throw new Error("No object selected");
-      const next = await updateObject(objectId, patch);
-      setObject(next);
-      return next;
+      return updateObject(objectId, patch);
     },
-    [objectId]
-  );
+    onSuccess: async (next) => {
+      queryClient.setQueryData(queryKey, next);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey, exact: true, refetchType: "none" }),
+        queryClient.invalidateQueries({ queryKey: mediaKeys.objectLists() })
+      ]);
+    }
+  });
 
-  const remove = useCallback(async () => {
-    if (!objectId) throw new Error("No object selected");
-    await deleteObject(objectId);
-    setObject(null);
-  }, [objectId]);
+  const removeMutation = useMutation<void, unknown, void>({
+    mutationFn: async () => {
+      if (!objectId) throw new Error("No object selected");
+      await deleteObject(objectId);
+    },
+    onSuccess: async () => {
+      queryClient.setQueryData(queryKey, null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey, exact: true, refetchType: "none" }),
+        queryClient.invalidateQueries({ queryKey: mediaKeys.objectLists() })
+      ]);
+    }
+  });
 
-  return { object, loading, error, reload, update, remove };
+  const update = useCallback((patch: MediaObjectUpdate) => updateMutation.mutateAsync(patch), [updateMutation]);
+  const remove = useCallback(() => removeMutation.mutateAsync(), [removeMutation]);
+
+  return {
+    object: query.data ?? null,
+    loading: query.isFetching,
+    error: query.error ?? null,
+    reload,
+    update,
+    remove,
+    updateMutation,
+    removeMutation
+  };
 }

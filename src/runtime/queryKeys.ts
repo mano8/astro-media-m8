@@ -16,6 +16,7 @@ function normalizeParams<TParams extends QueryKeyParams>(params?: TParams): Read
 
 export const mediaKeys = {
   all: () => ["media"] as const,
+  objectLists: () => ["media", "objects"] as const,
   objects: (params: ObjectListParams = {}) => ["media", "objects", normalizeParams(params)] as const,
   object: (objectId: string) => ["media", "object", objectId] as const,
   variants: (objectId: string) => ["media", "variants", objectId] as const,
@@ -25,5 +26,6 @@ export const mediaKeys = {
   adminStaleUploads: <TParams extends QueryKeyParams>(params?: TParams) =>
     ["media", "admin", "stale-uploads", normalizeParams(params)] as const,
   adminOrphans: <TParams extends QueryKeyParams>(params?: TParams) =>
-    ["media", "admin", "orphans", normalizeParams(params)] as const
+    ["media", "admin", "orphans", normalizeParams(params)] as const,
+  adminSubscriptions: () => ["media", "admin", "subscriptions"] as const
 };

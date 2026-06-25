@@ -22,6 +22,7 @@ describe("mediaKeys", () => {
 
   it("builds stable keys for detail and admin scopes", () => {
     expect(mediaKeys.all()).toEqual(["media"]);
+    expect(mediaKeys.objectLists()).toEqual(["media", "objects"]);
     expect(mediaKeys.objects()).toEqual(["media", "objects", {}]);
     expect(mediaKeys.object("obj_123")).toEqual(["media", "object", "obj_123"]);
     expect(mediaKeys.variants("obj_123")).toEqual(["media", "variants", "obj_123"]);
@@ -30,6 +31,7 @@ describe("mediaKeys", () => {
     expect(mediaKeys.adminStats()).toEqual(["media", "admin", "stats"]);
     expect(mediaKeys.adminStaleUploads()).toEqual(["media", "admin", "stale-uploads", {}]);
     expect(mediaKeys.adminOrphans()).toEqual(["media", "admin", "orphans", {}]);
+    expect(mediaKeys.adminSubscriptions()).toEqual(["media", "admin", "subscriptions"]);
   });
 
   it("normalizes optional admin params and strips undefined values", () => {

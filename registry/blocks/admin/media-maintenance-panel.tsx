@@ -133,7 +133,7 @@ export function MediaMaintenancePanel({ labels }: MediaMaintenancePanelProps) {
   const { purgeStale, repair, purgeExpiredObjects } = useMediaAdmin();
 
   return (
-    <Card className="border-destructive/40">
+    <Card className="not-content border-destructive/40">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base text-destructive">
           <AlertTriangle className="size-4" />

@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useMediaPresets } from "../hooks/useMediaPresets.js";
 import { useMediaVariants } from "../hooks/useMediaVariants.js";
 
+const checkboxLabelClassName =
+  "fa-media-label flex items-center gap-2 pb-2 text-sm leading-none font-medium select-none";
+
 /** List variants for an object and generate new ones from named presets. */
 export function VariantPicker({ objectId }: { objectId: string }) {
   const { presets } = useMediaPresets();
@@ -24,7 +27,7 @@ export function VariantPicker({ objectId }: { objectId: string }) {
   }
 
   return (
-    <section className="fa-media-panel">
+    <section className="not-content fa-media-panel">
       <h3>Variants</h3>
       {error ? <p role="alert">Failed to load variants</p> : null}
       <ul className="fa-media-variants">
@@ -40,7 +43,7 @@ export function VariantPicker({ objectId }: { objectId: string }) {
       <fieldset>
         <legend>Generate from presets</legend>
         {presets.map((preset) => (
-          <label key={preset.name}>
+          <label className={checkboxLabelClassName} key={preset.name}>
             <input type="checkbox" checked={selected.includes(preset.name)} onChange={() => toggle(preset.name)} />
             {preset.name}
             {preset.builtin ? " (built-in)" : ""}
