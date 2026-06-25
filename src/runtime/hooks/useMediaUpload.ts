@@ -1,9 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import {
   createMediaUploadController,
   type UploadControllerInput,
   type UploadProgress
 } from "../upload/uploadController.js";
+import { mediaKeys } from "../queryKeys.js";
 import type { MediaObjectPublic } from "../schemas.js";
 
 export type UseMediaUpload = {
@@ -15,6 +17,7 @@ export type UseMediaUpload = {
 };
 
 export function useMediaUpload(): UseMediaUpload {
+  const queryClient = useQueryClient();
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +30,9 @@ export function useMediaUpload(): UseMediaUpload {
     setBusy(true);
     setError(null);
     try {
-      return await controller.start();
+      const object = await controller.start();
+      await queryClient.invalidateQueries({ queryKey: mediaKeys.objectLists() });
+      return object;
     } catch (err) {
       setError(err);
       throw err;
@@ -35,7 +40,7 @@ export function useMediaUpload(): UseMediaUpload {
       setBusy(false);
       controllerRef.current = null;
     }
-  }, []);
+  }, [queryClient]);
 
   const abort = useCallback(() => controllerRef.current?.abort(), []);
 
