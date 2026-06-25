@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { listObjects } from "../api/objects.js";
-import type { MediaObjectPublic, ObjectListParams } from "../schemas.js";
+import { mediaKeys } from "../queryKeys.js";
+import type { MediaObjectPublic, ObjectListParams, ObjectListResponse } from "../schemas.js";
 
 export type UseMediaObjects = {
   items: MediaObjectPublic[];
@@ -12,44 +13,49 @@ export type UseMediaObjects = {
   loadMore: () => Promise<void>;
 };
 
+type ObjectListPageParam = string | null;
+
+function listParamsWithoutCursor(params: ObjectListParams): ObjectListParams {
+  const next = { ...params };
+  delete next.cursor;
+  return next;
+}
+
+function flattenPages(data: InfiniteData<ObjectListResponse, ObjectListPageParam> | undefined): MediaObjectPublic[] {
+  return data?.pages.flatMap((page) => page.items) ?? [];
+}
+
+function latestCount(data: InfiniteData<ObjectListResponse, ObjectListPageParam> | undefined): number {
+  return data?.pages.at(-1)?.count ?? 0;
+}
+
 export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects {
-  const [items, setItems] = useState<MediaObjectPublic[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const key = JSON.stringify(params);
-
-  const load = useCallback(
-    async (append: boolean, next: string | null) => {
-      setLoading(true);
-      try {
-        const parsed = JSON.parse(key) as ObjectListParams;
-        const response = await listObjects({ ...parsed, cursor: next ?? undefined });
-        setItems((prev) => (append ? [...prev, ...response.items] : response.items));
-        setCursor(response.next_cursor);
-        setCount(response.count);
-        setError(null);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [key]
-  );
-
-  useEffect(() => {
-    void load(false, null);
-  }, [load]);
+  const queryClient = useQueryClient();
+  const listParams = listParamsWithoutCursor(params);
+  const queryKey = mediaKeys.objects(listParams);
+  const query = useInfiniteQuery<
+    ObjectListResponse,
+    unknown,
+    InfiniteData<ObjectListResponse, ObjectListPageParam>,
+    typeof queryKey,
+    ObjectListPageParam
+  >({
+    queryKey,
+    initialPageParam: null,
+    queryFn: ({ pageParam }) => listObjects({ ...listParams, cursor: pageParam ?? undefined }),
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined
+  });
 
   return {
-    items,
-    count,
-    loading,
-    error,
-    hasMore: cursor != null,
-    refresh: () => load(false, null),
-    loadMore: () => (cursor != null ? load(true, cursor) : Promise.resolve())
+    items: flattenPages(query.data),
+    count: latestCount(query.data),
+    loading: query.isFetching,
+    error: query.error ?? null,
+    hasMore: query.hasNextPage,
+    refresh: () => queryClient.resetQueries({ queryKey, exact: true }),
+    loadMore: async () => {
+      if (!query.hasNextPage || query.isFetchingNextPage) return;
+      await query.fetchNextPage();
+    }
   };
 }
