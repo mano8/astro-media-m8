@@ -37,6 +37,7 @@
     "./hooks": "./dist/src/runtime/hooks/index.js",
     "./react": "./dist/src/runtime/react/index.js",
     "./default-ui": "./dist/src/runtime/react/default-ui/index.js",
+    "./list-params": "./dist/src/runtime/listParams.js",
     "./routes": "./dist/src/runtime/routes.js",
     "./routes/upload.astro": "./src/routes/upload.astro",
     "./routes/library.astro": "./src/routes/library.astro",
