@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { MediaProvider } from "../MediaProvider.js";
+import { MediaQueryProvider } from "../MediaQueryProvider.js";
 import { AdminMediaPanel } from "../AdminMediaPanel.js";
 import { MediaLibrary } from "../MediaLibrary.js";
 import { MediaUploadDropzone } from "../MediaUploadDropzone.js";
@@ -12,7 +13,11 @@ type ViewConfig = Partial<Omit<MediaRuntimeConfig, "polling">> & {
 };
 
 function Shell({ config, children }: { config?: ViewConfig; children: ReactNode }) {
-  return <MediaProvider config={config}>{children}</MediaProvider>;
+  return (
+    <MediaQueryProvider>
+      <MediaProvider config={config}>{children}</MediaProvider>
+    </MediaQueryProvider>
+  );
 }
 
 export function UploadView({ config, libraryHref }: { config?: ViewConfig; libraryHref?: string }) {

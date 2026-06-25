@@ -1,3 +1,4 @@
+export { MediaQueryProvider, type MediaQueryProviderProps } from "./MediaQueryProvider.js";
 export { MediaProvider, useMediaContext, type MediaContextValue } from "./MediaProvider.js";
 export { RequireSuperuser } from "./RequireSuperuser.js";
 export { MediaUploadDropzone } from "./MediaUploadDropzone.js";

@@ -78,6 +78,8 @@
     "@vitest/coverage-v8": "^4.1.9",
     "astro": "^6.0.0",
     "jsdom": "^29.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "typescript": "^5.8.0",
     "vitest": "^4.1.9",
     "zod": "^4.0.0"
