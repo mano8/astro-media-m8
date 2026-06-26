@@ -144,12 +144,78 @@ describe("faMedia integration", () => {
     const { addMiddleware } = runSetup({ guards: { middleware: true } });
     expect(addMiddleware).toHaveBeenCalledWith({ order: "pre", entrypoint: "@fa-m8/astro-media-m8/middleware" });
   });
+
+  it("injects an empty CSP policy when middleware is not active (headless default)", () => {
+    const { updateConfig } = runSetup({ apiBase: "/media" });
+    const define = updateConfig.mock.calls[0][0].vite.define as Record<string, string>;
+    expect(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"]).toBe(JSON.stringify(""));
+  });
+
+  it("injects a non-empty CSP policy when middleware is active", () => {
+    const { updateConfig } = runSetup({ guards: { middleware: true } });
+    const define = updateConfig.mock.calls[0][0].vite.define as Record<string, string>;
+    const policy = JSON.parse(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"] as string) as string;
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).toContain("connect-src 'self'");
+  });
+
+  it("includes media origin in CSP connect-src when apiBase is an external URL", () => {
+    const { updateConfig } = runSetup({ apiBase: "https://media.example.com/media", guards: { middleware: true } });
+    const define = updateConfig.mock.calls[0][0].vite.define as Record<string, string>;
+    const policy = JSON.parse(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"] as string) as string;
+    expect(policy).toContain("https://media.example.com");
+  });
+
+  it("injects an empty CSP policy when csp.enabled is false even if middleware is active", () => {
+    const { updateConfig } = runSetup({ guards: { middleware: true }, csp: { enabled: false } });
+    const define = updateConfig.mock.calls[0][0].vite.define as Record<string, string>;
+    expect(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"]).toBe(JSON.stringify(""));
+  });
+
+  it("forwards csp.connectExtraOrigins into connect-src", () => {
+    const { updateConfig } = runSetup({
+      guards: { middleware: true },
+      csp: { connectExtraOrigins: ["https://auth.example.com"] }
+    });
+    const define = updateConfig.mock.calls[0][0].vite.define as Record<string, string>;
+    const policy = JSON.parse(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"] as string) as string;
+    expect(policy).toContain("https://auth.example.com");
+  });
 });
 
 describe("middleware", () => {
-  it("passes through to next", () => {
-    const next = vi.fn().mockReturnValue("ok");
-    expect(onRequest({}, next)).toBe("ok");
+  it("passes through to next when no CSP policy is set", () => {
+    const next = vi.fn().mockReturnValue(new Response("ok"));
+    // @ts-expect-error import.meta.env is not typed in tests
+    import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY = "";
+    const result = onRequest({}, next);
     expect(next).toHaveBeenCalled();
+    expect(result).toBeInstanceOf(Response);
+  });
+
+  it("injects the CSP header on a synchronous response", () => {
+    // @ts-expect-error import.meta.env is not typed in tests
+    import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY = "default-src 'self'";
+    const next = vi.fn().mockReturnValue(new Response("body", { status: 200 }));
+    const result = onRequest({}, next) as Response;
+    expect(result.headers.get("Content-Security-Policy")).toBe("default-src 'self'");
+  });
+
+  it("injects the CSP header on an async response", async () => {
+    // @ts-expect-error import.meta.env is not typed in tests
+    import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY = "default-src 'self'";
+    const next = vi.fn().mockResolvedValue(new Response("body", { status: 200 }));
+    const result = await (onRequest({}, next) as Promise<Response>);
+    expect(result.headers.get("Content-Security-Policy")).toBe("default-src 'self'");
+  });
+
+  it("does not overwrite an existing CSP header", () => {
+    // @ts-expect-error import.meta.env is not typed in tests
+    import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY = "default-src 'self'";
+    const existing = new Response("body", { headers: { "Content-Security-Policy": "default-src 'none'" } });
+    const next = vi.fn().mockReturnValue(existing);
+    const result = onRequest({}, next) as Response;
+    expect(result.headers.get("Content-Security-Policy")).toBe("default-src 'none'");
   });
 });

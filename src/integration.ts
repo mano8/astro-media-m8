@@ -1,6 +1,7 @@
 import type { AstroIntegration } from "astro";
 import { buildMediaRoutes, type MediaRouteFragments } from "./runtime/routes.js";
 import type { MediaCategory, MediaVisibility } from "./runtime/schemas.js";
+import { buildMediaCspPolicy, type MediaCspOptions } from "./lib/csp.js";
 
 export type FaMediaAstroOptions = {
   apiBase?: string;
@@ -45,6 +46,11 @@ export type FaMediaAstroOptions = {
   guards?: {
     middleware?: boolean;
   };
+  /** CSP header support for server/hybrid output modes. Enabled by default when the middleware is active. */
+  csp?: {
+    /** Set to false to disable CSP header injection even when the middleware is active. Default: true. */
+    enabled?: boolean;
+  } & MediaCspOptions;
 };
 
 const ROUTE_ENTRYPOINTS = {
@@ -78,6 +84,13 @@ export default function faMedia(options: FaMediaAstroOptions = {}): AstroIntegra
   const mode = options.mode ?? "headless";
   const provider = options.auth?.provider ?? "fa-auth-astro";
   const routes = buildMediaRoutes(options.routes);
+  const apiBase = options.apiBase ?? "/media";
+
+  const cspEnabled = options.csp?.enabled !== false;
+  const middlewareActive = options.guards?.middleware === true;
+  const cspPolicy = cspEnabled && middlewareActive
+    ? buildMediaCspPolicy(apiBase, { connectExtraOrigins: options.csp?.connectExtraOrigins })
+    : "";
 
   return {
     name: "@fa-m8/astro-media-m8",
@@ -86,10 +99,11 @@ export default function faMedia(options: FaMediaAstroOptions = {}): AstroIntegra
         updateConfig({
           vite: {
             define: {
-              "import.meta.env.PUBLIC_FA_MEDIA_API_BASE": JSON.stringify(options.apiBase ?? "/media"),
+              "import.meta.env.PUBLIC_FA_MEDIA_API_BASE": JSON.stringify(apiBase),
               "import.meta.env.PUBLIC_FA_MEDIA_V1_BASE": JSON.stringify(options.v1Base ?? "/v1"),
               "import.meta.env.PUBLIC_FA_MEDIA_LEGACY_BASE": JSON.stringify(options.legacyBase ?? ""),
-              "import.meta.env.PUBLIC_FA_MEDIA_ADMIN_ROLE": JSON.stringify(options.auth?.adminRole ?? "is_superuser")
+              "import.meta.env.PUBLIC_FA_MEDIA_ADMIN_ROLE": JSON.stringify(options.auth?.adminRole ?? "is_superuser"),
+              "import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY": JSON.stringify(cspPolicy),
             }
           }
         });
