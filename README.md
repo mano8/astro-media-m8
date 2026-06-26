@@ -7,17 +7,18 @@ and injectable starter routes — so any Astro stack can drive media without
 re-implementing the contract.
 
 Pinned to `media-service-m8@0.0` (supported service-version range
-`>=0.0.8 <0.1.0`; see `mediaServiceM8` in `package.json`).
+`>=0.0.10 <0.1.0`; see `mediaServiceM8` in `package.json`).
 
 ## Backend contract
 
 This package targets the `media-service-m8@0.0` API contract and was tested
-against `media-service-m8` service version `0.0.8`. Supported backend service
-versions are `>=0.0.8 <0.1.0` (the floor is the first release exposing the
-discovery route). The contract major.minor tracks the pre-1.0 package line.
+against `media-service-m8` service version `0.0.10`. Supported backend service
+versions are `>=0.0.10 <0.1.0` (the floor is the first release supporting the
+media library sorting contract). The contract major.minor tracks the pre-1.0
+package line.
 
 Compatibility helpers are exported from `@fa-m8/astro-media-m8/compatibility`.
-`media-service-m8` (≥ 0.0.8) exposes a public `GET {API_PREFIX}/meta` route
+`media-service-m8` (>= 0.0.10) exposes a public `GET {API_PREFIX}/meta` route
 returning a `ServiceMeta` payload — pass it straight to the assert:
 
 ```ts
@@ -104,6 +105,34 @@ const page = await objects.list({ category: "asset", limit: 20 });
   the adapter already knows the user is not a superuser.
 - Every response body is parsed through Zod; `204` responses skip parsing.
 - Request URLs are protocol-pinned to http(s).
+
+## Content Security Policy
+
+When `guards.middleware` is enabled, the integration injects a `Content-Security-Policy`
+header on every response. The `connect-src` directive is built to cover `'self'` and the
+media API origin (when `apiBase` is an absolute URL).
+
+**Browser-direct storage uploads** use the presigned POST returned by the media service,
+so the browser also needs `fetch` access to the MinIO/S3 public endpoint. Without this,
+a tight `connect-src` blocks the upload even though the presign itself comes from the
+media API.
+
+Pass the storage public origin in `csp.storageOrigin` — it must match the
+`MINIO_PUBLIC_ENDPOINT` set in the media-service stack:
+
+```ts
+faMedia({
+  apiBase: "/media",
+  guards: { middleware: true },
+  csp: {
+    storageOrigin: "https://minio.example.com:9000", // matches MINIO_PUBLIC_ENDPOINT
+  },
+})
+```
+
+`storageOrigin` is an operator deploy setting, not a plugin contract value. If it is
+omitted, empty, or not a valid absolute URL, it is silently ignored. Use
+`csp.connectExtraOrigins` for any other trusted origins that must reach `connect-src`.
 
 ## shadcn views (registry)
 

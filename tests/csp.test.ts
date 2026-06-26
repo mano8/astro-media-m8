@@ -85,6 +85,38 @@ describe("buildMediaCspPolicy", () => {
     expect(policy).toContain("https://cdn.example.com");
   });
 
+  it("adds storageOrigin to connect-src for browser-direct presigned uploads", () => {
+    const policy = buildMediaCspPolicy("/media", { storageOrigin: "https://minio.example.com:9000" });
+    expect(policy).toContain("https://minio.example.com:9000");
+  });
+
+  it("ignores storageOrigin when empty", () => {
+    const policy = buildMediaCspPolicy("/media", { storageOrigin: "" });
+    const connectSrc = policy.split("; ").find(d => d.startsWith("connect-src"));
+    expect(connectSrc).toBe("connect-src 'self'");
+  });
+
+  it("ignores storageOrigin when not a valid absolute URL", () => {
+    const policy = buildMediaCspPolicy("/media", { storageOrigin: "not-a-url" });
+    const connectSrc = policy.split("; ").find(d => d.startsWith("connect-src"));
+    expect(connectSrc).toBe("connect-src 'self'");
+  });
+
+  it("deduplicates storageOrigin when it matches an existing origin", () => {
+    const policy = buildMediaCspPolicy("https://media.example.com/media", { storageOrigin: "https://media.example.com" });
+    const connectSrc = policy.split("; ").find(d => d.startsWith("connect-src")) ?? "";
+    expect(connectSrc.split(" ").filter(t => t === "https://media.example.com")).toHaveLength(1);
+  });
+
+  it("combines storageOrigin and connectExtraOrigins in connect-src", () => {
+    const policy = buildMediaCspPolicy("/media", {
+      storageOrigin: "https://minio.example.com:9000",
+      connectExtraOrigins: ["https://auth.example.com"],
+    });
+    expect(policy).toContain("https://minio.example.com:9000");
+    expect(policy).toContain("https://auth.example.com");
+  });
+
   it("formats directives separated by semicolons with no trailing separator", () => {
     const policy = buildMediaCspPolicy("/media");
     const parts = policy.split("; ");

@@ -1,4 +1,11 @@
 export type MediaCspOptions = {
+  /**
+   * Public origin of the object-storage endpoint used for browser-direct presigned
+   * uploads (e.g. `"https://minio.example.com:9000"`).
+   * Matches `MINIO_PUBLIC_ENDPOINT` in the media-service stack.
+   * Ignored when empty or not a valid absolute URL.
+   */
+  storageOrigin?: string;
   connectExtraOrigins?: string[];
 };
 
@@ -35,7 +42,11 @@ export function buildMediaConnectSrc(apiBase: string, extraOrigins: string[] = [
  * The `connect-src` directive includes the media API origin when `apiBase` is an absolute URL.
  */
 export function buildMediaCspPolicy(apiBase: string, options: MediaCspOptions = {}): string {
-  const connectSrc = buildMediaConnectSrc(apiBase, options.connectExtraOrigins ?? []);
+  const extraOrigins = [
+    ...(options.storageOrigin ? [options.storageOrigin] : []),
+    ...(options.connectExtraOrigins ?? []),
+  ];
+  const connectSrc = buildMediaConnectSrc(apiBase, extraOrigins);
   const directives: [string, string][] = [
     ["default-src", "'self'"],
     ["script-src", "'self'"],

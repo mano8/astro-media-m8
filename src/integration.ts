@@ -89,7 +89,10 @@ export default function faMedia(options: FaMediaAstroOptions = {}): AstroIntegra
   const cspEnabled = options.csp?.enabled !== false;
   const middlewareActive = options.guards?.middleware === true;
   const cspPolicy = cspEnabled && middlewareActive
-    ? buildMediaCspPolicy(apiBase, { connectExtraOrigins: options.csp?.connectExtraOrigins })
+    ? buildMediaCspPolicy(apiBase, {
+        storageOrigin: options.csp?.storageOrigin,
+        connectExtraOrigins: options.csp?.connectExtraOrigins,
+      })
     : "";
 
   return {

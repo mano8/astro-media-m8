@@ -182,6 +182,16 @@ describe("faMedia integration", () => {
     const policy = JSON.parse(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"] as string) as string;
     expect(policy).toContain("https://auth.example.com");
   });
+
+  it("forwards csp.storageOrigin into connect-src for browser-direct uploads", () => {
+    const { updateConfig } = runSetup({
+      guards: { middleware: true },
+      csp: { storageOrigin: "https://minio.example.com:9000" }
+    });
+    const define = updateConfig.mock.calls[0][0].vite.define as Record<string, string>;
+    const policy = JSON.parse(define["import.meta.env.PUBLIC_FA_MEDIA_CSP_POLICY"] as string) as string;
+    expect(policy).toContain("https://minio.example.com:9000");
+  });
 });
 
 describe("middleware", () => {
