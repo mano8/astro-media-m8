@@ -102,6 +102,36 @@ describe("MediaQueryProvider", () => {
 });
 
 describe("MediaProvider", () => {
+  it("exposes synchronous adapter users before effects run", () => {
+    let context: ReturnType<typeof useMediaContext> | undefined;
+    const user = { is_superuser: true };
+
+    function Probe() {
+      context = useMediaContext();
+      return <span>{context.loading ? "loading" : String(context.isSuperuser)}</span>;
+    }
+
+    const adapter = {
+      getAccessToken: () => "token",
+      getUser: () => user,
+      isSuperuser: (value: unknown) => Boolean((value as { is_superuser?: boolean } | null)?.is_superuser)
+    };
+
+    const view = render(
+      <MediaQueryProvider>
+        <MediaProvider adapter={adapter}>
+          <Probe />
+        </MediaProvider>
+      </MediaQueryProvider>
+    );
+
+    expect(context?.loading).toBe(false);
+    expect(context?.user).toBe(user);
+    expect(context?.isSuperuser).toBe(true);
+    expect(view.container.textContent).toBe("true");
+    view.unmount();
+  });
+
   it("loads adapter-backed auth state inside the query provider", async () => {
     let context: ReturnType<typeof useMediaContext> | undefined;
 

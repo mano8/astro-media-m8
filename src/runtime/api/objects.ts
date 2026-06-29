@@ -1,4 +1,5 @@
 import { request } from "../client.js";
+import { ApiError } from "../errors.js";
 import {
   DownloadUrlResponseSchema,
   MediaObjectPublicSchema,
@@ -10,14 +11,44 @@ import {
   type ObjectListResponse
 } from "../schemas.js";
 
-export function listObjects(params: ObjectListParams = {}): Promise<ObjectListResponse> {
-  return request({
+type SortField = NonNullable<ObjectListParams["sort_by"]>;
+
+const LEGACY_SORT_FALLBACKS: Partial<Record<SortField, SortField>> = {
+  original_filename: "created_at",
+  category: "created_at",
+  status: "created_at"
+};
+
+function legacySortFallback(params: ObjectListParams): ObjectListParams["sort_by"] | undefined {
+  return params.sort_by === undefined ? undefined : LEGACY_SORT_FALLBACKS[params.sort_by];
+}
+
+function shouldRetryLegacySort(error: unknown, fallback: ObjectListParams["sort_by"] | undefined): boolean {
+  return error instanceof ApiError && error.status === 422 && fallback !== undefined;
+}
+
+export async function listObjects(params: ObjectListParams = {}): Promise<ObjectListResponse> {
+  const options = {
     method: "GET",
     path: "/objects",
     query: { ...params },
     schema: ObjectListResponseSchema,
     auth: true
-  });
+  } as const;
+
+  try {
+    return await request(options);
+  } catch (error) {
+    const fallback = legacySortFallback(params);
+    if (!shouldRetryLegacySort(error, fallback)) throw error;
+    return request({
+      ...options,
+      query: {
+        ...params,
+        sort_by: fallback
+      }
+    });
+  }
 }
 
 export function getObject(objectId: string): Promise<MediaObjectPublic> {

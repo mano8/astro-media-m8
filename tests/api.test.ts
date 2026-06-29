@@ -15,6 +15,7 @@ import * as categories from "../src/runtime/api/categories.js";
 import * as dashboard from "../src/runtime/api/dashboard.js";
 import * as admin from "../src/runtime/api/admin.js";
 import * as index from "../src/runtime/api/index.js";
+import { ApiError } from "../src/runtime/errors.js";
 
 function lastOptions() {
   return requestMock.mock.calls.at(-1)?.[0];
@@ -58,6 +59,55 @@ describe("objects API", () => {
     expect(lastOptions()).toMatchObject({ method: "PATCH", path: "/objects/o1" });
     await objects.deleteObject("o1");
     expect(lastOptions()).toMatchObject({ method: "DELETE", path: "/objects/o1" });
+  });
+
+  it("retries new sort fields with a legacy sort when the service rejects them", async () => {
+    const response = { items: [], next_cursor: null, count: 0 };
+    requestMock
+      .mockRejectedValueOnce(new ApiError(422, [{ loc: ["query", "sort_by"], msg: "invalid" }]))
+      .mockResolvedValueOnce(response);
+
+    await expect(
+      objects.listObjects({ sort_by: "original_filename", order: "asc", limit: 10 })
+    ).resolves.toBe(response);
+
+    expect(requestMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        query: expect.objectContaining({ sort_by: "original_filename", order: "asc" })
+      })
+    );
+    expect(requestMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        query: expect.objectContaining({ sort_by: "created_at", order: "asc" })
+      })
+    );
+  });
+
+  it("does not retry list failures unrelated to new sort-field validation", async () => {
+    const serverError = new ApiError(500, "failed");
+    requestMock.mockRejectedValueOnce(serverError);
+
+    await expect(objects.listObjects({ sort_by: "category" })).rejects.toBe(serverError);
+    expect(requestMock).toHaveBeenCalledOnce();
+
+    const validationError = new ApiError(422, "invalid");
+    requestMock.mockRejectedValueOnce(validationError);
+    await expect(objects.listObjects({ sort_by: "created_at" })).rejects.toBe(validationError);
+    expect(requestMock).toHaveBeenCalledTimes(2);
+
+    const unknownError = new Error("network");
+    requestMock.mockRejectedValueOnce(unknownError);
+    await expect(objects.listObjects({ sort_by: "status" })).rejects.toBe(unknownError);
+    expect(requestMock).toHaveBeenCalledTimes(3);
+
+    const unsortedValidationError = new ApiError(422, "invalid");
+    requestMock.mockRejectedValueOnce(unsortedValidationError);
+    await expect(objects.listObjects({ category: "asset" })).rejects.toBe(
+      unsortedValidationError
+    );
+    expect(requestMock).toHaveBeenCalledTimes(4);
   });
 });
 

@@ -125,6 +125,8 @@ describe("useMediaObjects", () => {
       expect(latest?.error).toBeNull();
       expect(latest?.hasMore).toBe(true);
     });
+    const firstRefresh = latest!.refresh;
+    const firstLoadMore = latest!.loadMore;
 
     await act(async () => {
       await latest?.loadMore();
@@ -135,6 +137,8 @@ describe("useMediaObjects", () => {
       expect(latest?.count).toBe(2);
       expect(latest?.hasMore).toBe(false);
     });
+    expect(latest?.refresh).toBe(firstRefresh);
+    expect(latest?.loadMore).toBe(firstLoadMore);
 
     await act(async () => {
       await latest?.refresh();
@@ -145,6 +149,8 @@ describe("useMediaObjects", () => {
       expect(latest?.count).toBe(1);
       expect(latest?.hasMore).toBe(false);
     });
+    expect(latest?.refresh).toBe(firstRefresh);
+    expect(latest?.loadMore).toBe(firstLoadMore);
     view.unmount();
   });
 

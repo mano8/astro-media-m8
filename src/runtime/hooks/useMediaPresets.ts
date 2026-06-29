@@ -33,10 +33,6 @@ export function useMediaPresets(): UseMediaPresets {
     queryFn: listPresets
   });
 
-  const reload = useCallback(async () => {
-    await query.refetch();
-  }, [query]);
-
   const createMutation = useMutation<ImagePresetPublic, unknown, ImagePresetCreate>({
     mutationFn: createPreset,
     onSuccess: async () => {
@@ -59,13 +55,21 @@ export function useMediaPresets(): UseMediaPresets {
       await queryClient.invalidateQueries({ queryKey, exact: true });
     }
   });
+  const { refetch } = query;
+  const { mutateAsync: createPresetAsync } = createMutation;
+  const { mutateAsync: updatePresetAsync } = updateMutation;
+  const { mutateAsync: removePresetAsync } = removeMutation;
 
-  const create = useCallback((body: ImagePresetCreate) => createMutation.mutateAsync(body), [createMutation]);
+  const reload = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const create = useCallback((body: ImagePresetCreate) => createPresetAsync(body), [createPresetAsync]);
   const update = useCallback(
-    (id: string, body: ImagePresetUpdate) => updateMutation.mutateAsync({ id, body }),
-    [updateMutation]
+    (id: string, body: ImagePresetUpdate) => updatePresetAsync({ id, body }),
+    [updatePresetAsync]
   );
-  const remove = useCallback((id: string) => removeMutation.mutateAsync(id), [removeMutation]);
+  const remove = useCallback((id: string) => removePresetAsync(id), [removePresetAsync]);
 
   return {
     presets: query.data ?? [],

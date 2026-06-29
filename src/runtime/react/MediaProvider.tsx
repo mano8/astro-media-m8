@@ -18,6 +18,26 @@ export type MediaContextValue = {
 
 const MediaContext = createContext<MediaContextValue | null>(null);
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return Boolean(
+    value &&
+      (typeof value === "object" || typeof value === "function") &&
+      "then" in value &&
+      typeof (value as { then?: unknown }).then === "function"
+  );
+}
+
+function readAdapterUser(adapter: MediaAuthAdapter): { user: unknown; loading: boolean } {
+  if (!adapter.getUser) return { user: null, loading: false };
+  try {
+    const value = adapter.getUser();
+    if (isPromiseLike(value)) return { user: null, loading: true };
+    return { user: value, loading: false };
+  } catch {
+    return { user: null, loading: false };
+  }
+}
+
 export function MediaProvider({
   children,
   config,
@@ -28,25 +48,38 @@ export function MediaProvider({
   adapter?: MediaAuthAdapter;
 }) {
   const resolved = adapter ?? getMediaAuthAdapter();
-  const [user, setUser] = useState<unknown>(null);
-  const [loading, setLoading] = useState(true);
+  const [authState, setAuthState] = useState(() => readAdapterUser(resolved));
 
   useEffect(() => {
     if (config) configureMedia(config);
   }, [config]);
 
   useEffect(() => {
+    if (!resolved.getUser) {
+      setAuthState({ user: null, loading: false });
+      return undefined;
+    }
+
     let cancelled = false;
-    Promise.resolve(resolved.getUser ? resolved.getUser() : null)
-      .then((value) => {
-        if (!cancelled) setUser(value);
-      })
-      .catch(() => {
-        if (!cancelled) setUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    try {
+      const value = resolved.getUser();
+      if (!isPromiseLike(value)) {
+        setAuthState({ user: value, loading: false });
+        return undefined;
+      }
+
+      setAuthState((current) => ({ ...current, loading: true }));
+      Promise.resolve(value)
+        .then((nextUser) => {
+          if (!cancelled) setAuthState({ user: nextUser, loading: false });
+        })
+        .catch(() => {
+          if (!cancelled) setAuthState({ user: null, loading: false });
+        });
+    } catch {
+      setAuthState({ user: null, loading: false });
+    }
+
     return () => {
       cancelled = true;
     };
@@ -55,11 +88,11 @@ export function MediaProvider({
   const value = useMemo<MediaContextValue>(
     () => ({
       adapter: resolved,
-      user,
-      isSuperuser: Boolean(resolved.isSuperuser?.(user)),
-      loading
+      user: authState.user,
+      isSuperuser: Boolean(resolved.isSuperuser?.(authState.user)),
+      loading: authState.loading
     }),
-    [resolved, user, loading]
+    [authState.loading, authState.user, resolved]
   );
 
   return <MediaContext.Provider value={value}>{children}</MediaContext.Provider>;

@@ -27,11 +27,6 @@ export function useMediaObject(objectId: string | null): UseMediaObject {
     enabled: Boolean(objectId)
   });
 
-  const reload = useCallback(async () => {
-    if (!objectId) return;
-    await query.refetch();
-  }, [objectId, query]);
-
   const updateMutation = useMutation<MediaObjectPublic, unknown, MediaObjectUpdate>({
     mutationFn: async (patch) => {
       if (!objectId) throw new Error("No object selected");
@@ -59,9 +54,17 @@ export function useMediaObject(objectId: string | null): UseMediaObject {
       ]);
     }
   });
+  const { refetch } = query;
+  const { mutateAsync: updateObjectAsync } = updateMutation;
+  const { mutateAsync: removeObjectAsync } = removeMutation;
 
-  const update = useCallback((patch: MediaObjectUpdate) => updateMutation.mutateAsync(patch), [updateMutation]);
-  const remove = useCallback(() => removeMutation.mutateAsync(), [removeMutation]);
+  const reload = useCallback(async () => {
+    if (!objectId) return;
+    await refetch();
+  }, [objectId, refetch]);
+
+  const update = useCallback((patch: MediaObjectUpdate) => updateObjectAsync(patch), [updateObjectAsync]);
+  const remove = useCallback(() => removeObjectAsync(), [removeObjectAsync]);
 
   return {
     object: query.data ?? null,

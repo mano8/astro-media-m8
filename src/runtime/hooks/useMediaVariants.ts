@@ -37,11 +37,6 @@ export function useMediaVariants(objectId: string | null): UseMediaVariants {
     enabled: Boolean(objectId)
   });
 
-  const reload = useCallback(async () => {
-    if (!objectId) return;
-    await query.refetch();
-  }, [objectId, query]);
-
   const generateMutation = useMutation<VariantJobPublic, unknown, string[]>({
     mutationFn: async (presets) => {
       if (!objectId) throw new Error("No object selected");
@@ -81,9 +76,17 @@ export function useMediaVariants(objectId: string | null): UseMediaVariants {
       ]);
     }
   });
+  const { refetch } = query;
+  const { mutateAsync: generateVariantsAsync } = generateMutation;
+  const { mutateAsync: removeVariantAsync } = removeMutation;
 
-  const generate = useCallback((presets: string[]) => generateMutation.mutateAsync(presets), [generateMutation]);
-  const remove = useCallback((variantId: string) => removeMutation.mutateAsync(variantId), [removeMutation]);
+  const reload = useCallback(async () => {
+    if (!objectId) return;
+    await refetch();
+  }, [objectId, refetch]);
+
+  const generate = useCallback((presets: string[]) => generateVariantsAsync(presets), [generateVariantsAsync]);
+  const remove = useCallback((variantId: string) => removeVariantAsync(variantId), [removeVariantAsync]);
 
   return {
     items: query.data?.items ?? [],

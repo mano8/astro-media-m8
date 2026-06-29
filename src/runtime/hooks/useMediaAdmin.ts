@@ -140,6 +140,34 @@ export function useMediaAdmin(): UseMediaAdmin {
       );
     }
   });
+  const { refetch: refetchStats } = statsQuery;
+  const { refetch: refetchStale } = staleQuery;
+  const { refetch: refetchOrphans } = orphansQuery;
+  const { refetch: refetchSubscriptions } = subscriptionsQuery;
+  const { mutateAsync: purgeStaleAsync } = purgeStaleMutation;
+  const { mutateAsync: repairAsync } = repairMutation;
+  const { mutateAsync: purgeExpiredAsync } = purgeExpiredMutation;
+  const { mutateAsync: removeSubscriptionAsync } = removeSubscriptionMutation;
+
+  const loadStats = useCallback(async () => {
+    await refetchOrThrow(refetchStats);
+  }, [refetchStats]);
+  const loadStale = useCallback(async () => {
+    await refetchOrThrow(refetchStale);
+  }, [refetchStale]);
+  const loadOrphans = useCallback(async () => {
+    await refetchOrThrow(refetchOrphans);
+  }, [refetchOrphans]);
+  const loadSubscriptions = useCallback(async () => {
+    await refetchOrThrow(refetchSubscriptions);
+  }, [refetchSubscriptions]);
+  const purgeStale = useCallback(() => purgeStaleAsync(), [purgeStaleAsync]);
+  const repair = useCallback((confirm: boolean) => repairAsync(confirm), [repairAsync]);
+  const purgeExpiredObjects = useCallback(() => purgeExpiredAsync(), [purgeExpiredAsync]);
+  const removeSubscription = useCallback(
+    (id: string) => removeSubscriptionAsync(id),
+    [removeSubscriptionAsync]
+  );
 
   return {
     allowed: isSuperuser,
@@ -166,22 +194,14 @@ export function useMediaAdmin(): UseMediaAdmin {
       purgeExpiredMutation.error ??
       removeSubscriptionMutation.error ??
       null,
-    loadStats: async () => {
-      await refetchOrThrow(() => statsQuery.refetch());
-    },
-    loadStale: async () => {
-      await refetchOrThrow(() => staleQuery.refetch());
-    },
-    purgeStale: () => purgeStaleMutation.mutateAsync(),
-    loadOrphans: async () => {
-      await refetchOrThrow(() => orphansQuery.refetch());
-    },
-    repair: (confirm: boolean) => repairMutation.mutateAsync(confirm),
-    purgeExpiredObjects: () => purgeExpiredMutation.mutateAsync(),
-    loadSubscriptions: async () => {
-      await refetchOrThrow(() => subscriptionsQuery.refetch());
-    },
-    removeSubscription: (id: string) => removeSubscriptionMutation.mutateAsync(id),
+    loadStats,
+    loadStale,
+    purgeStale,
+    loadOrphans,
+    repair,
+    purgeExpiredObjects,
+    loadSubscriptions,
+    removeSubscription,
     purgeStaleMutation,
     repairMutation,
     purgeExpiredMutation,

@@ -29,13 +29,15 @@ export function useDownloadUrl(objectId: string | null): UseDownloadUrl {
   const resolveMutation = useMutation<DownloadUrlResponse, unknown, string>({
     mutationFn: (token) => resolveShare(token)
   });
+  const { mutateAsync: requestDownloadUrlAsync } = requestMutation;
+  const { mutateAsync: resolveShareAsync } = resolveMutation;
 
   const request = useCallback(() => {
     if (!objectId) throw new Error("No object selected");
-    return requestMutation.mutateAsync();
-  }, [objectId, requestMutation]);
+    return requestDownloadUrlAsync();
+  }, [objectId, requestDownloadUrlAsync]);
 
-  const resolve = useCallback((token: string) => resolveMutation.mutateAsync(token), [resolveMutation]);
+  const resolve = useCallback((token: string) => resolveShareAsync(token), [resolveShareAsync]);
 
   const requestIsLatest = requestMutation.submittedAt >= resolveMutation.submittedAt;
   const latestData = requestIsLatest ? requestMutation.data : resolveMutation.data;

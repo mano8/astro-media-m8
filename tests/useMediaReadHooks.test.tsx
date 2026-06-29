@@ -527,6 +527,14 @@ describe("useMediaAdmin", () => {
     await waitFor(() => {
       expect(latest?.allowed).toBe(true);
     });
+    const firstLoadStats = latest!.loadStats;
+    const firstLoadStale = latest!.loadStale;
+    const firstLoadOrphans = latest!.loadOrphans;
+    const firstLoadSubscriptions = latest!.loadSubscriptions;
+    const firstPurgeStale = latest!.purgeStale;
+    const firstRepair = latest!.repair;
+    const firstPurgeExpiredObjects = latest!.purgeExpiredObjects;
+    const firstRemoveSubscription = latest!.removeSubscription;
 
     await act(async () => {
       await latest?.loadStats();
@@ -545,6 +553,14 @@ describe("useMediaAdmin", () => {
       expect(latest?.purgeExpiredMutation.status).toBe("idle");
       expect(latest?.removeSubscriptionMutation.status).toBe("idle");
     });
+    expect(latest?.loadStats).toBe(firstLoadStats);
+    expect(latest?.loadStale).toBe(firstLoadStale);
+    expect(latest?.loadOrphans).toBe(firstLoadOrphans);
+    expect(latest?.loadSubscriptions).toBe(firstLoadSubscriptions);
+    expect(latest?.purgeStale).toBe(firstPurgeStale);
+    expect(latest?.repair).toBe(firstRepair);
+    expect(latest?.purgeExpiredObjects).toBe(firstPurgeExpiredObjects);
+    expect(latest?.removeSubscription).toBe(firstRemoveSubscription);
 
     await act(async () => {
       await expect(latest?.purgeStale()).resolves.toEqual(purgeStale);
@@ -561,6 +577,14 @@ describe("useMediaAdmin", () => {
       expect(latest?.purgeExpiredMutation.status).toBe("success");
       expect(latest?.removeSubscriptionMutation.status).toBe("success");
     });
+    expect(latest?.loadStats).toBe(firstLoadStats);
+    expect(latest?.loadStale).toBe(firstLoadStale);
+    expect(latest?.loadOrphans).toBe(firstLoadOrphans);
+    expect(latest?.loadSubscriptions).toBe(firstLoadSubscriptions);
+    expect(latest?.purgeStale).toBe(firstPurgeStale);
+    expect(latest?.repair).toBe(firstRepair);
+    expect(latest?.purgeExpiredObjects).toBe(firstPurgeExpiredObjects);
+    expect(latest?.removeSubscription).toBe(firstRemoveSubscription);
     view.unmount();
   });
 

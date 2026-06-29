@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef } from "react";
 import { listObjects } from "../api/objects.js";
 import { mediaKeys } from "../queryKeys.js";
 import type { MediaObjectPublic, ObjectListParams, ObjectListResponse } from "../schemas.js";
@@ -31,8 +32,51 @@ function latestCount(data: InfiniteData<ObjectListResponse, ObjectListPageParam>
 
 export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects {
   const queryClient = useQueryClient();
-  const listParams = listParamsWithoutCursor(params);
-  const queryKey = mediaKeys.objects(listParams);
+  const {
+    category,
+    visibility,
+    status,
+    mime_prefix,
+    created_from,
+    created_to,
+    q,
+    sort_by,
+    order,
+    limit,
+    owner_user_id,
+    include_deleted
+  } = params;
+  const listParams = useMemo(
+    () => listParamsWithoutCursor({
+      category,
+      visibility,
+      status,
+      mime_prefix,
+      created_from,
+      created_to,
+      q,
+      sort_by,
+      order,
+      limit,
+      owner_user_id,
+      include_deleted
+    }),
+    [
+      category,
+      created_from,
+      created_to,
+      include_deleted,
+      limit,
+      mime_prefix,
+      order,
+      owner_user_id,
+      q,
+      sort_by,
+      status,
+      visibility
+    ]
+  );
+  const queryKey = useMemo(() => mediaKeys.objects(listParams), [listParams]);
   const query = useInfiniteQuery<
     ObjectListResponse,
     unknown,
@@ -45,6 +89,22 @@ export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects 
     queryFn: ({ pageParam }) => listObjects({ ...listParams, cursor: pageParam ?? undefined }),
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined
   });
+  const { fetchNextPage } = query;
+  const hasNextPageRef = useRef(query.hasNextPage);
+  const isFetchingNextPageRef = useRef(query.isFetchingNextPage);
+  hasNextPageRef.current = query.hasNextPage;
+  isFetchingNextPageRef.current = query.isFetchingNextPage;
+
+  const refresh = useCallback(
+    async () => {
+      await queryClient.resetQueries({ queryKey, exact: true });
+    },
+    [queryClient, queryKey]
+  );
+  const loadMore = useCallback(async () => {
+    if (!hasNextPageRef.current || isFetchingNextPageRef.current) return;
+    await fetchNextPage();
+  }, [fetchNextPage]);
 
   return {
     items: flattenPages(query.data),
@@ -52,10 +112,7 @@ export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects 
     loading: query.isFetching,
     error: query.error ?? null,
     hasMore: query.hasNextPage,
-    refresh: () => queryClient.resetQueries({ queryKey, exact: true }),
-    loadMore: async () => {
-      if (!query.hasNextPage || query.isFetchingNextPage) return;
-      await query.fetchNextPage();
-    }
+    refresh,
+    loadMore
   };
 }
