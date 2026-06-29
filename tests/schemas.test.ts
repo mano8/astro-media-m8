@@ -36,7 +36,7 @@ describe("enum schemas", () => {
     expect(s.ModerationStatusSchema.parse("skipped")).toBe("skipped");
     expect(s.ImageFormatSchema.parse("AVIF")).toBe("AVIF");
     expect(s.VariantJobStatusSchema.parse("completed")).toBe("completed");
-    expect(s.SortFieldSchema.parse("size_bytes")).toBe("size_bytes");
+    expect(s.SortFieldSchema.parse("original_filename")).toBe("original_filename");
     expect(s.SortOrderSchema.parse("asc")).toBe("asc");
     expect(() => s.MediaCategorySchema.parse("nope")).toThrow();
   });

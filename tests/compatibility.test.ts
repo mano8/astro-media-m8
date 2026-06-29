@@ -27,27 +27,26 @@ describe("media-service-m8 compatibility", () => {
   });
 
   it("checks the service version range", () => {
-    expect(isMediaServiceM8ServiceVersionCompatible("0.0.8")).toBe(true);
-    expect(isMediaServiceM8ServiceVersionCompatible("0.0.9")).toBe(true);
-    expect(isMediaServiceM8ServiceVersionCompatible("0.0.7")).toBe(false);
+    expect(isMediaServiceM8ServiceVersionCompatible("0.0.10")).toBe(true);
+    expect(isMediaServiceM8ServiceVersionCompatible("0.0.9")).toBe(false);
     expect(isMediaServiceM8ServiceVersionCompatible("0.1.0")).toBe(false);
     expect(isMediaServiceM8ServiceVersionCompatible("nope")).toBe(false);
-    expect(getMediaServiceM8Compatibility({ service_version: "0.0.8" }).status).toBe("compatible");
+    expect(getMediaServiceM8Compatibility({ service_version: "0.0.10" }).status).toBe("compatible");
     expect(getMediaServiceM8Compatibility({ version: "0.9.0" }).status).toBe("incompatible");
   });
 
   it("reads the GET /meta payload shape (nested contract + version)", () => {
     const meta = {
       service: "M8MediaService",
-      version: "0.0.8",
+      version: "0.0.10",
       api_version: "v1",
-      contract: { name: "media-service-m8", version: "0.0", range: ">=0.0.8 <0.1.0" }
+      contract: { name: "media-service-m8", version: "0.0", range: ">=0.0.10 <0.1.0" }
     };
     const result = getMediaServiceM8Compatibility(meta);
     expect(result.status).toBe("compatible");
     expect(result.contractVersion).toBe("0.0");
-    expect(result.serviceVersion).toBe("0.0.8");
-    expect(getMediaServiceM8Compatibility({ version: "0.0.8", contract: { version: "2.0" } }).status).toBe(
+    expect(result.serviceVersion).toBe("0.0.10");
+    expect(getMediaServiceM8Compatibility({ version: "0.0.10", contract: { version: "2.0" } }).status).toBe(
       "incompatible"
     );
   });
@@ -58,10 +57,10 @@ describe("media-service-m8 compatibility", () => {
 
   it("prefers media-specific keys for both fields", () => {
     const result = getMediaServiceM8Compatibility({
-      media_service_m8_version: "0.0.9",
+      media_service_m8_version: "0.0.10",
       media_contract: "0.0"
     });
-    expect(result.serviceVersion).toBe("0.0.9");
+    expect(result.serviceVersion).toBe("0.0.10");
     expect(result.contractVersion).toBe("0.0");
   });
 

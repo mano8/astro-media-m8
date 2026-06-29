@@ -3,10 +3,10 @@ export const MEDIA_SERVICE_M8_CONTRACT_ID = "media-service-m8";
 // aspirational 1.0 — kept in lockstep with media-service-m8's CONTRACT_VERSION.
 export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "0.0";
 export const MEDIA_SERVICE_M8_CONTRACT = `${MEDIA_SERVICE_M8_CONTRACT_ID}@${MEDIA_SERVICE_M8_CONTRACT_VERSION}` as const;
-// 0.0.8 is the first media-service-m8 release exposing GET {API_PREFIX}/meta;
-// earlier versions have no discovery route for this plugin to read.
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "0.0.8";
-export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "0.0.8";
+// 0.0.10 is the first media-service-m8 release supporting the media library's
+// filename/category/status server-side sorting contract.
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "0.0.10";
+export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "0.0.10";
 export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "0.1.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;
 

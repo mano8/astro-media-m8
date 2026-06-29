@@ -40,7 +40,13 @@ export type ImageFormat = z.infer<typeof ImageFormatSchema>;
 export const VariantJobStatusSchema = z.enum(["queued", "processing", "completed", "failed"]);
 export type VariantJobStatus = z.infer<typeof VariantJobStatusSchema>;
 
-export const SortFieldSchema = z.enum(["created_at", "size_bytes"]);
+export const SortFieldSchema = z.enum([
+  "original_filename",
+  "category",
+  "status",
+  "size_bytes",
+  "created_at"
+]);
 export type SortField = z.infer<typeof SortFieldSchema>;
 
 export const SortOrderSchema = z.enum(["asc", "desc"]);
