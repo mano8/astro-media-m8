@@ -23,6 +23,10 @@ function render(element: ReactNode) {
   });
   return {
     container,
+    rerender: (nextElement: ReactNode) =>
+      act(() => {
+        root.render(<>{nextElement}</>);
+      }),
     unmount: () => act(() => root.unmount())
   };
 }
@@ -127,6 +131,44 @@ describe("MediaProvider", () => {
 
     expect(context?.loading).toBe(false);
     expect(context?.user).toBe(user);
+    expect(context?.isSuperuser).toBe(true);
+    expect(view.container.textContent).toBe("true");
+    view.unmount();
+  });
+
+  it("exposes changed synchronous adapter users during rerender", () => {
+    let context: ReturnType<typeof useMediaContext> | undefined;
+    let currentUser: { is_superuser?: boolean } | null = null;
+
+    function Probe() {
+      context = useMediaContext();
+      return <span>{context.loading ? "loading" : String(context.isSuperuser)}</span>;
+    }
+
+    const adapter = {
+      getAccessToken: () => "token",
+      getUser: () => currentUser,
+      isSuperuser: (value: unknown) => Boolean((value as { is_superuser?: boolean } | null)?.is_superuser)
+    };
+
+    const tree = () => (
+      <MediaQueryProvider>
+        <MediaProvider adapter={adapter}>
+          <Probe />
+        </MediaProvider>
+      </MediaQueryProvider>
+    );
+    const view = render(tree());
+
+    expect(context?.loading).toBe(false);
+    expect(context?.user).toBeNull();
+    expect(context?.isSuperuser).toBe(false);
+
+    currentUser = { is_superuser: true };
+    view.rerender(tree());
+
+    expect(context?.loading).toBe(false);
+    expect(context?.user).toBe(currentUser);
     expect(context?.isSuperuser).toBe(true);
     expect(view.container.textContent).toBe("true");
     view.unmount();

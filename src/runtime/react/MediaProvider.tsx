@@ -85,14 +85,18 @@ export function MediaProvider({
     };
   }, [resolved]);
 
+  const currentUserState = readAdapterUser(resolved);
+  const user = currentUserState.loading ? authState.user : currentUserState.user;
+  const loading = currentUserState.loading ? authState.loading : false;
+
   const value = useMemo<MediaContextValue>(
     () => ({
       adapter: resolved,
-      user: authState.user,
-      isSuperuser: Boolean(resolved.isSuperuser?.(authState.user)),
-      loading: authState.loading
+      user,
+      isSuperuser: Boolean(resolved.isSuperuser?.(user)),
+      loading
     }),
-    [authState.loading, authState.user, resolved]
+    [loading, resolved, user]
   );
 
   return <MediaContext.Provider value={value}>{children}</MediaContext.Provider>;
