@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useDownloadUrl } from "../hooks/useDownloadUrl.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
 import type { MediaCategory, MediaObjectPublic, MediaObjectStatus, ObjectListParams } from "../schemas.js";
@@ -43,6 +43,20 @@ const cardPreviewClassName = "h-auto w-full rounded-none border-0";
 const cardBodyClassName = "fa-media-card-body grid gap-2 p-3";
 const cardTitleClassName = "m-0 truncate text-sm font-medium leading-5";
 const cardMetaClassName = "fa-media-card-meta flex flex-wrap items-center gap-2 text-xs text-muted-foreground";
+const listPreviewStyle: CSSProperties = {
+  aspectRatio: "1 / 1",
+  borderRadius: "0.375rem",
+  height: "clamp(4rem, 12vw, 8rem)",
+  maxHeight: "8rem",
+  maxWidth: "8rem",
+  objectFit: "cover",
+  width: "clamp(4rem, 12vw, 8rem)"
+};
+const activeViewButtonStyle: CSSProperties = {
+  background: "var(--fa-media-active-bg, var(--foreground, CanvasText))",
+  borderColor: "var(--fa-media-active-bg, var(--foreground, CanvasText))",
+  color: "var(--fa-media-active-fg, var(--background, Canvas))"
+};
 
 function isImage(object: MediaObjectPublic): boolean {
   return object.mime_type.toLowerCase().startsWith("image/");
@@ -57,6 +71,22 @@ function previewLoadingFor(view: MediaLibraryView, index: number): PreviewLoadin
 
 function objectLabel(object: MediaObjectPublic): string {
   return object.original_filename ?? object.id;
+}
+
+function humanizeBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function MediaObjectPreview({
@@ -78,7 +108,11 @@ function MediaObjectPreview({
 
   if (!isImage(object)) {
     return (
-      <span className={`${previewPlaceholderClassName} fa-media-preview--file`} aria-hidden="true">
+      <span
+        className={`${previewPlaceholderClassName} fa-media-preview--file`}
+        style={view === "list" ? listPreviewStyle : undefined}
+        aria-hidden="true"
+      >
         {object.extension ?? "file"}
       </span>
     );
@@ -86,7 +120,11 @@ function MediaObjectPreview({
 
   if (!data) {
     return (
-      <span className={`${previewPlaceholderClassName} fa-media-preview--loading`} aria-label={`${objectLabel(object)} preview loading`}>
+      <span
+        className={`${previewPlaceholderClassName} fa-media-preview--loading`}
+        style={view === "list" ? listPreviewStyle : undefined}
+        aria-label={`${objectLabel(object)} preview loading`}
+      >
         {loading ? "Loading" : "Preview"}
       </span>
     );
@@ -97,6 +135,9 @@ function MediaObjectPreview({
       className={view === "list" ? previewClassName : `${previewClassName} ${cardPreviewClassName}`}
       src={data.url}
       alt={objectLabel(object)}
+      style={view === "list" ? listPreviewStyle : undefined}
+      width={view === "list" ? 128 : undefined}
+      height={view === "list" ? 128 : undefined}
       loading={loadingMode.loading}
       decoding="async"
       fetchPriority={loadingMode.fetchPriority}
@@ -114,7 +155,7 @@ function MediaObjectMeta({ object }: { object: MediaObjectPublic }) {
     <>
       <span>{object.category}</span>
       <span className={`fa-media-badge fa-media-badge--${object.status}`}>{STATUS_BADGE[object.status]}</span>
-      <span>{object.size_bytes} bytes</span>
+      <span>{humanizeBytes(object.size_bytes)}</span>
     </>
   );
 }
@@ -142,6 +183,7 @@ export function MediaLibrary({
                 type="button"
                 aria-pressed={view === value}
                 className={viewButtonClassName}
+                style={view === value ? activeViewButtonStyle : undefined}
                 onClick={() => setView(value)}
               >
                 {VIEW_LABELS[value]}
@@ -165,6 +207,22 @@ export function MediaLibrary({
           {(["avatar", "document", "asset", "chat_attachment", "export", "receipt"] as MediaCategory[]).map((value) => (
             <option key={value} value={value}>
               {value}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputClassName}
+          onChange={(event) =>
+            setQuery((prev) => ({
+              ...prev,
+              status: (event.currentTarget.value || undefined) as MediaObjectStatus | undefined
+            }))
+          }
+        >
+          <option value="">All statuses</option>
+          {(Object.keys(STATUS_BADGE) as MediaObjectStatus[]).map((value) => (
+            <option key={value} value={value}>
+              {STATUS_BADGE[value]}
             </option>
           ))}
         </select>
@@ -194,7 +252,7 @@ export function MediaLibrary({
                 <td>
                   <span className={`fa-media-badge fa-media-badge--${object.status}`}>{STATUS_BADGE[object.status]}</span>
                 </td>
-                <td>{object.size_bytes}</td>
+                <td>{humanizeBytes(object.size_bytes)}</td>
               </tr>
             ))}
           </tbody>

@@ -84,7 +84,7 @@ function makeObject(index: number, mimeType = "image/png"): MediaObjectPublic {
     original_filename: `file-${index}.${extension}`,
     mime_type: mimeType,
     extension,
-    size_bytes: index,
+    size_bytes: index * 2048,
     sha256: null,
     etag: null,
     storage_class: "standard",
@@ -132,8 +132,22 @@ describe("MediaLibrary", () => {
     const listImages = view.container.querySelectorAll("img");
     expect(listImages[0]?.getAttribute("loading")).toBe("lazy");
     expect(listImages[0]?.getAttribute("fetchpriority")).toBe("low");
+    expect(listImages[0]?.getAttribute("width")).toBe("128");
+    expect(listImages[0]?.getAttribute("height")).toBe("128");
+    expect(listImages[0]?.style.maxWidth).toBe("8rem");
+    expect(screenPressed(view.container, "List")?.style.background).not.toBe("");
+    expect(view.container.textContent).toContain("2.0 KB");
     expect(view.container.textContent).toContain("pdf");
     expect(apiMocks.getDownloadUrl).toHaveBeenCalledTimes(7);
+
+    await act(async () => {
+      const statusSelect = view.container.querySelectorAll<HTMLSelectElement>("select").item(1);
+      statusSelect.value = "ready";
+      statusSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await waitFor(() => {
+      expect(apiMocks.listObjects).toHaveBeenLastCalledWith(expect.objectContaining({ status: "ready" }));
+    });
 
     await act(async () => {
       view.container.querySelector<HTMLButtonElement>('button[aria-pressed="false"]')?.click();
@@ -145,6 +159,9 @@ describe("MediaLibrary", () => {
     const gridImages = view.container.querySelectorAll("img");
     expect(gridImages[0]?.getAttribute("loading")).toBe("eager");
     expect(gridImages[0]?.getAttribute("fetchpriority")).toBe("high");
+    expect(gridImages[0]?.getAttribute("width")).toBeNull();
+    expect(screenPressed(view.container, "Grid")?.style.background).not.toBe("");
+    expect(view.container.textContent).toContain("2.0 KB");
     expect(gridImages[6]?.getAttribute("loading")).toBe("lazy");
     expect(gridImages[6]?.getAttribute("fetchpriority")).toBe("low");
 
@@ -162,3 +179,9 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 });
+
+function screenPressed(container: HTMLElement, name: string): HTMLButtonElement | null {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+    (button) => button.textContent === name && button.getAttribute("aria-pressed") === "true",
+  ) ?? null;
+}
