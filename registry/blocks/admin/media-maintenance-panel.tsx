@@ -2,11 +2,11 @@
 
 // Media admin "Maintenance / Danger zone": the destructive storage operations,
 // each behind a shadcn `alert-dialog` confirmation. Logic stays a live
-// dependency (@fa-m8/astro-media-m8/hooks); this file is only the shadcn skin,
+// dependency (@mano8/astro-media-m8/hooks); this file is only the shadcn skin,
 // copied into the consumer via the @fa-m8-media registry — edit freely per app.
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
-import { useMediaAdmin } from "@fa-m8/astro-media-m8/hooks";
+import { useMediaAdmin } from "@mano8/astro-media-m8/hooks";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

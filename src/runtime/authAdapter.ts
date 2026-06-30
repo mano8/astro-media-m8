@@ -4,7 +4,7 @@ import { getMediaConfig } from "./config.js";
  * Narrow runtime contract the media plugin consumes for authentication.
  *
  * The media plugin never owns token storage or refresh logic; it delegates to
- * whatever the host stack provides. `@fa-m8/astro-auth-m8` is the official
+ * whatever the host stack provides. `@mano8/astro-auth-m8` is the official
  * provider, but any object that satisfies this shape works.
  */
 export type MediaAuthAdapter = {
@@ -59,7 +59,7 @@ export type FaAuthBindings = {
 };
 
 /**
- * Build the official adapter from `@fa-m8/astro-auth-m8` bindings. The bindings
+ * Build the official adapter from `@mano8/astro-auth-m8` bindings. The bindings
  * are injected by the consumer so the media plugin keeps the auth plugin as an
  * optional peer and never statically imports it.
  */

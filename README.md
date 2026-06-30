@@ -1,10 +1,12 @@
-# @fa-m8/astro-media-m8
+# @mano8/astro-media-m8
 
 Astro integration and headless client for [`media-service-m8`]. The media-side
-analog of `@fa-m8/astro-auth-m8`: typed Zod schemas, API wrappers for the full
+analog of `@mano8/astro-auth-m8`: typed Zod schemas, API wrappers for the full
 media contract, a presigned-upload controller, optional React provider/hooks,
 and injectable starter routes — so any Astro stack can drive media without
 re-implementing the contract.
+
+Part of the M8 media stack: [mano8/astro-media-m8](https://github.com/mano8/astro-media-m8) works with [mano8/astro-auth-m8](https://github.com/mano8/astro-auth-m8) for fa-auth-m8 token delegation, targets the media backend at [https://github.com/mano8/media-service-m8/tree/main](https://github.com/mano8/media-service-m8/tree/main), and composes into [mano8/fa-ui-m8](https://github.com/mano8/fa-ui-m8).
 
 Pinned to `media-service-m8@0.0` (supported service-version range
 `>=0.0.10 <0.1.0`; see `mediaServiceM8` in `package.json`).
@@ -17,12 +19,12 @@ versions are `>=0.0.10 <0.1.0` (the floor is the first release supporting the
 media library sorting contract). The contract major.minor tracks the pre-1.0
 package line.
 
-Compatibility helpers are exported from `@fa-m8/astro-media-m8/compatibility`.
+Compatibility helpers are exported from `@mano8/astro-media-m8/compatibility`.
 `media-service-m8` (>= 0.0.10) exposes a public `GET {API_PREFIX}/meta` route
 returning a `ServiceMeta` payload — pass it straight to the assert:
 
 ```ts
-import { assertMediaServiceM8Compatibility } from "@fa-m8/astro-media-m8/compatibility";
+import { assertMediaServiceM8Compatibility } from "@mano8/astro-media-m8/compatibility";
 
 const meta = await fetch(`${base}/media/meta`).then((r) => r.json());
 // meta = { service, version, api_version, contract: { name, version, range } }
@@ -36,10 +38,10 @@ elsewhere.
 ## Install
 
 ```sh
-npm i @fa-m8/astro-media-m8 @fa-m8/astro-auth-m8 zod
+npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 ```
 
-`@fa-m8/astro-auth-m8` is a required peer: `media-service-m8` only accepts
+`@mano8/astro-auth-m8` is a required peer: `media-service-m8` only accepts
 `fa-auth-m8`-issued tokens, so the plugin's auth adapter must be backed by
 `fa-auth-m8` (the official plugin, or a custom adapter that obtains those
 tokens). `react`/`react-dom` are optional — only `./react`, `./hooks` and the
@@ -57,8 +59,8 @@ starter views need them.
 // astro.config.mjs
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
-import faAuth from "@fa-m8/astro-auth-m8";
-import faMedia from "@fa-m8/astro-media-m8";
+import faAuth from "@mano8/astro-auth-m8";
+import faMedia from "@mano8/astro-media-m8";
 
 export default defineConfig({
   integrations: [
@@ -72,9 +74,9 @@ export default defineConfig({
 Wire the auth adapter once (browser entry / provider):
 
 ```ts
-import { getToken } from "@fa-m8/astro-auth-m8/client";
-import { refreshToken } from "@fa-m8/astro-auth-m8/api";
-import { createFaAuthAdapter, setMediaAuthAdapter } from "@fa-m8/astro-media-m8/auth-adapter";
+import { getToken } from "@mano8/astro-auth-m8/client";
+import { refreshToken } from "@mano8/astro-auth-m8/api";
+import { createFaAuthAdapter, setMediaAuthAdapter } from "@mano8/astro-media-m8/auth-adapter";
 
 setMediaAuthAdapter(createFaAuthAdapter({ getToken, refreshToken }));
 ```
@@ -82,8 +84,8 @@ setMediaAuthAdapter(createFaAuthAdapter({ getToken, refreshToken }));
 ## Headless usage
 
 ```ts
-import { objects, uploads } from "@fa-m8/astro-media-m8/api";
-import { createMediaUploadController } from "@fa-m8/astro-media-m8/upload";
+import { objects, uploads } from "@mano8/astro-media-m8/api";
+import { createMediaUploadController } from "@mano8/astro-media-m8/upload";
 
 const controller = createMediaUploadController({
   file, category: "asset", visibility: "private", checksum: "sha256", waitForScan: true
@@ -97,7 +99,7 @@ const page = await objects.list({ category: "asset", limit: 20 });
 ## Security model
 
 - Access tokens are delegated to the auth adapter and **never persisted** here.
-- Service tokens are server-only: `@fa-m8/astro-media-m8/internal-server` throws
+- Service tokens are server-only: `@mano8/astro-media-m8/internal-server` throws
   if imported in the browser and is excluded from the client `api` barrel.
 - The browser→storage upload uses the presigned POST policy only — **no bearer
   token** is sent to MinIO/S3.
@@ -138,7 +140,7 @@ omitted, empty, or not a valid absolute URL, it is silently ignored. Use
 
 For shadcn/Tailwind apps, this package ships a **shadcn registry** of ready-to-run
 styled admin views. The headless logic stays a live dependency
-(`@fa-m8/astro-media-m8/react` + `/hooks`); only the **skin** is copied into the
+(`@mano8/astro-media-m8/react` + `/hooks`); only the **skin** is copied into the
 consumer, so views adopt the app's own tokens and are fully editable. The registry
 items are pre-built into the package at `registry/r/*.json` (regenerate with
 `npm run build:registry`; the output matches `shadcn build`).
@@ -153,19 +155,19 @@ declare the namespace in `components.json` for documentation / future HTTP hosti
 ```jsonc
 // components.json
 "registries": {
-  "@fa-m8-media": "./node_modules/@fa-m8/astro-media-m8/registry/r/{name}.json"
+  "@fa-m8-media": "./node_modules/@mano8/astro-media-m8/registry/r/{name}.json"
 }
 ```
 
 ### Items
 
-| Item | `shadcn add` (run from the consumer project root) | registryDependencies | npm dependencies | Needs `@fa-m8/astro-media-m8`? |
+| Item | `shadcn add` (run from the consumer project root) | registryDependencies | npm dependencies | Needs `@mano8/astro-media-m8`? |
 | :-- | :-- | :-- | :-- | :-- |
-| `data-table` | `npx shadcn add ./node_modules/@fa-m8/astro-media-m8/registry/r/data-table.json` | `table`, `button`, `input` | `@tanstack/react-table` | no |
-| `media-storage-chart` | `npx shadcn add ./node_modules/@fa-m8/astro-media-m8/registry/r/media-storage-chart.json` | `chart` | `recharts` | no |
-| `media-dashboard-overview` | `npx shadcn add ./node_modules/@fa-m8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `skeleton`, `media-storage-chart`, `data-table` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
-| `media-maintenance-panel` | `npx shadcn add ./node_modules/@fa-m8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog` | `lucide-react` | **yes** (`useMediaAdmin`) |
-| `admin-media-dashboard` | `npx shadcn add ./node_modules/@fa-m8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
+| `data-table` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/data-table.json` | `table`, `button`, `input` | `@tanstack/react-table` | no |
+| `media-storage-chart` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-storage-chart.json` | `chart` | `recharts` | no |
+| `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `skeleton`, `media-storage-chart`, `data-table` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
+| `media-maintenance-panel` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog` | `lucide-react` | **yes** (`useMediaAdmin`) |
+| `admin-media-dashboard` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
 
 `media-dashboard-overview` is the admin **landing** view (storage stat cards + a
 per-category storage chart + a subscriptions `data-table` with a delete row action).
@@ -186,7 +188,7 @@ The plugin package is intentionally **not** listed in item `dependencies` (it wo
 
 - shadcn configured with `style: radix-nova`, `baseColor: neutral`, `cssVariables: true`,
   lucide icons, and Tailwind v4 tokens in `src/styles/global.css`.
-- `@fa-m8/astro-media-m8` installed, plus its **required peer `@fa-m8/astro-auth-m8`** —
+- `@mano8/astro-media-m8` installed, plus its **required peer `@mano8/astro-auth-m8`** —
   media-service only accepts fa-auth-m8 tokens, so a `MediaProvider` backed by a
   fa-auth adapter must be in the tree and the signed-in user must be a superuser.
 - Operator env: `PUBLIC_MEDIA_API_BASE` enables the media plugin; the integration injects

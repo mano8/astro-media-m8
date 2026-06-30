@@ -2,7 +2,7 @@
 
 // Media admin view whose FIRST/landing tab is the storage dashboard; the
 // destructive operations are demoted to a guarded "Maintenance" tab. Headless
-// state comes from the package (@fa-m8/astro-media-m8/react + /hooks); this file
+// state comes from the package (@mano8/astro-media-m8/react + /hooks); this file
 // is only the shadcn skin, copied into the consumer via the @fa-m8-media
 // registry. Because media-service only accepts fa-auth-m8 tokens, the auth
 // package must also be present (pass its adapter via `adapter`). Edit per app.
@@ -12,7 +12,7 @@ import {
   MediaProvider,
   RequireSuperuser,
   type MediaContextValue,
-} from "@fa-m8/astro-media-m8/react";
+} from "@mano8/astro-media-m8/react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {

@@ -1,4 +1,4 @@
-// Zero-dependency registry builder for @fa-m8/astro-media-m8.
+// Zero-dependency registry builder for @mano8/astro-media-m8.
 //
 // Mirrors the output of `shadcn build`: reads registry.json, inlines the
 // `content` of each item file, and writes one `<output>/<name>.json` per item

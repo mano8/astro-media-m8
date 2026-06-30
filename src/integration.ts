@@ -54,14 +54,14 @@ export type FaMediaAstroOptions = {
 };
 
 const ROUTE_ENTRYPOINTS = {
-  upload: "@fa-m8/astro-media-m8/routes/upload.astro",
-  library: "@fa-m8/astro-media-m8/routes/library.astro",
-  object: "@fa-m8/astro-media-m8/routes/object/[id].astro",
-  presets: "@fa-m8/astro-media-m8/routes/presets.astro",
-  admin: "@fa-m8/astro-media-m8/routes/admin/media.astro"
+  upload: "@mano8/astro-media-m8/routes/upload.astro",
+  library: "@mano8/astro-media-m8/routes/library.astro",
+  object: "@mano8/astro-media-m8/routes/object/[id].astro",
+  presets: "@mano8/astro-media-m8/routes/presets.astro",
+  admin: "@mano8/astro-media-m8/routes/admin/media.astro"
 } as const;
 
-const AUTH_INTEGRATION_NAME = "@fa-m8/astro-auth-m8";
+const AUTH_INTEGRATION_NAME = "@mano8/astro-auth-m8";
 
 /**
  * Warn when the official auth plugin is not registered before this one — order
@@ -70,13 +70,13 @@ const AUTH_INTEGRATION_NAME = "@fa-m8/astro-auth-m8";
 function checkAuthOrder(integrations: { name?: string }[] | undefined, logger?: { warn: (m: string) => void }): void {
   const names = (integrations ?? []).map((entry) => entry?.name);
   const authIndex = names.indexOf(AUTH_INTEGRATION_NAME);
-  const mediaIndex = names.indexOf("@fa-m8/astro-media-m8");
+  const mediaIndex = names.indexOf("@mano8/astro-media-m8");
   if (authIndex === -1) {
     logger?.warn(
       `auth.provider is "fa-auth-astro" but ${AUTH_INTEGRATION_NAME} is not in the integrations list`
     );
   } else if (mediaIndex !== -1 && authIndex > mediaIndex) {
-    logger?.warn(`${AUTH_INTEGRATION_NAME} should be listed before @fa-m8/astro-media-m8`);
+    logger?.warn(`${AUTH_INTEGRATION_NAME} should be listed before @mano8/astro-media-m8`);
   }
 }
 
@@ -96,7 +96,7 @@ export default function faMedia(options: FaMediaAstroOptions = {}): AstroIntegra
     : "";
 
   return {
-    name: "@fa-m8/astro-media-m8",
+    name: "@mano8/astro-media-m8",
     hooks: {
       "astro:config:setup": ({ injectRoute, addMiddleware, updateConfig, config, logger }) => {
         updateConfig({
@@ -141,7 +141,7 @@ export default function faMedia(options: FaMediaAstroOptions = {}): AstroIntegra
         }
 
         if (options.guards?.middleware) {
-          addMiddleware({ order: "pre", entrypoint: "@fa-m8/astro-media-m8/middleware" });
+          addMiddleware({ order: "pre", entrypoint: "@mano8/astro-media-m8/middleware" });
         }
       }
     }

@@ -84,7 +84,7 @@ describe("faMedia integration", () => {
   it("injects starter routes and respects integration order", () => {
     const { injectRoute, logger } = runSetup(
       { mode: "starter" },
-      { config: { integrations: [{ name: "@fa-m8/astro-auth-m8" }, { name: "@fa-m8/astro-media-m8" }] } }
+      { config: { integrations: [{ name: "@mano8/astro-auth-m8" }, { name: "@mano8/astro-media-m8" }] } }
     );
     expect(injectRoute).toHaveBeenCalledTimes(5);
     const patterns = injectRoute.mock.calls.map(([arg]) => (arg as { pattern: string }).pattern);
@@ -96,7 +96,7 @@ describe("faMedia integration", () => {
   it("warns when the auth plugin is registered after media", () => {
     const { logger } = runSetup(
       { mode: "starter" },
-      { config: { integrations: [{ name: "@fa-m8/astro-media-m8" }, {}, { name: "@fa-m8/astro-auth-m8" }] } }
+      { config: { integrations: [{ name: "@mano8/astro-media-m8" }, {}, { name: "@mano8/astro-auth-m8" }] } }
     );
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("should be listed before"));
   });
@@ -104,7 +104,7 @@ describe("faMedia integration", () => {
   it("does not warn about order when media is absent from the list", () => {
     const { logger } = runSetup(
       { mode: "headless" },
-      { config: { integrations: [{ name: "@fa-m8/astro-auth-m8" }] } }
+      { config: { integrations: [{ name: "@mano8/astro-auth-m8" }] } }
     );
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -142,7 +142,7 @@ describe("faMedia integration", () => {
 
   it("registers middleware when guards are enabled", () => {
     const { addMiddleware } = runSetup({ guards: { middleware: true } });
-    expect(addMiddleware).toHaveBeenCalledWith({ order: "pre", entrypoint: "@fa-m8/astro-media-m8/middleware" });
+    expect(addMiddleware).toHaveBeenCalledWith({ order: "pre", entrypoint: "@mano8/astro-media-m8/middleware" });
   });
 
   it("injects an empty CSP policy when middleware is not active (headless default)", () => {

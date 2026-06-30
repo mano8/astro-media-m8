@@ -2,7 +2,7 @@
 
 // Media admin landing view: a storage dashboard built from the package's
 // headless `useMediaAdmin` hook. Logic stays a live dependency
-// (@fa-m8/astro-media-m8/hooks); this file is only the shadcn skin and is copied
+// (@mano8/astro-media-m8/hooks); this file is only the shadcn skin and is copied
 // into the consumer via the @fa-m8-media registry — edit freely per app.
 import * as React from "react";
 import {
@@ -13,8 +13,8 @@ import {
   Database,
   CloudOff,
 } from "lucide-react";
-import { useMediaAdmin } from "@fa-m8/astro-media-m8/hooks";
-import type { SubscriptionPublic } from "@fa-m8/astro-media-m8/schemas";
+import { useMediaAdmin } from "@mano8/astro-media-m8/hooks";
+import type { SubscriptionPublic } from "@mano8/astro-media-m8/schemas";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -16,7 +16,7 @@ default UI, and shadcn registry skins usable by `fa-ui-m8`.
 
 ## Boundaries
 
-- Require `@fa-m8/astro-auth-m8` as the auth peer for official M8 usage.
+- Require `@mano8/astro-auth-m8` as the auth peer for official M8 usage.
 - Couple to auth through `MediaAuthAdapter` / `fa-auth-astro` provider only.
 - Talk to `media-service-m8` over HTTP only; never import service code.
 - Model public backend responses only; never expose secret/session fields.

@@ -22,7 +22,7 @@ const DEFAULT_TOKEN_ENV = "MEDIA_INTERNAL_SERVICE_TOKEN";
 function assertServerOnly(): void {
   if (typeof window !== "undefined") {
     throw new Error(
-      "@fa-m8/astro-media-m8/internal-server must only be imported on the server"
+      "@mano8/astro-media-m8/internal-server must only be imported on the server"
     );
   }
 }

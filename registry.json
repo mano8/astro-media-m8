@@ -37,14 +37,14 @@
       "name": "media-dashboard-overview",
       "type": "registry:component",
       "title": "Media Admin Dashboard Overview",
-      "description": "Media storage dashboard (stat cards + chart + subscriptions table) driven by the package's useMediaAdmin hook. Requires @fa-m8/astro-media-m8 installed.",
+      "description": "Media storage dashboard (stat cards + chart + subscriptions table) driven by the package's useMediaAdmin hook. Requires @mano8/astro-media-m8 installed.",
       "dependencies": ["lucide-react", "@tanstack/react-table"],
       "registryDependencies": [
         "card",
         "button",
         "skeleton",
-        "./node_modules/@fa-m8/astro-media-m8/registry/r/media-storage-chart.json",
-        "./node_modules/@fa-m8/astro-media-m8/registry/r/data-table.json"
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-storage-chart.json",
+        "./node_modules/@mano8/astro-media-m8/registry/r/data-table.json"
       ],
       "files": [
         {
@@ -58,7 +58,7 @@
       "name": "media-maintenance-panel",
       "type": "registry:component",
       "title": "Media Admin Maintenance Panel",
-      "description": "Media admin danger zone (purge-stale / repair-orphans / purge-expired), each behind a shadcn alert-dialog confirmation, driven by useMediaAdmin. Requires @fa-m8/astro-media-m8 installed.",
+      "description": "Media admin danger zone (purge-stale / repair-orphans / purge-expired), each behind a shadcn alert-dialog confirmation, driven by useMediaAdmin. Requires @mano8/astro-media-m8 installed.",
       "dependencies": ["lucide-react"],
       "registryDependencies": ["card", "button", "alert-dialog"],
       "files": [
@@ -73,12 +73,12 @@
       "name": "admin-media-dashboard",
       "type": "registry:component",
       "title": "Admin Media Dashboard",
-      "description": "Media admin view whose first/landing tab is the storage dashboard and whose destructive ops live in a guarded Maintenance tab; wraps the package's MediaProvider + RequireSuperuser. Requires @fa-m8/astro-media-m8 (and a fa-auth-m8 token adapter) installed.",
+      "description": "Media admin view whose first/landing tab is the storage dashboard and whose destructive ops live in a guarded Maintenance tab; wraps the package's MediaProvider + RequireSuperuser. Requires @mano8/astro-media-m8 (and a fa-auth-m8 token adapter) installed.",
       "dependencies": ["lucide-react"],
       "registryDependencies": [
         "tabs",
-        "./node_modules/@fa-m8/astro-media-m8/registry/r/media-dashboard-overview.json",
-        "./node_modules/@fa-m8/astro-media-m8/registry/r/media-maintenance-panel.json"
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json",
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json"
       ],
       "files": [
         {

@@ -1,5 +1,5 @@
 {
-  "name": "@fa-m8/astro-media-m8",
+  "name": "@mano8/astro-media-m8",
   "version": "0.1.0-alpha.1",
   "description": "Astro integration and headless client for media-service-m8.",
   "type": "module",
@@ -57,7 +57,7 @@
     "test:unit": "vitest run"
   },
   "peerDependencies": {
-    "@fa-m8/astro-auth-m8": "^0.1.0-alpha.1",
+    "@mano8/astro-auth-m8": "^0.1.0-alpha.1",
     "@tanstack/react-query": "^5.101.1",
     "astro": "^5.0.0 || ^6.0.0",
     "react": "^18.0.0 || ^19.0.0",
@@ -73,7 +73,7 @@
     }
   },
   "devDependencies": {
-    "@fa-m8/astro-auth-m8": "file:../astro-auth-m8",
+    "@mano8/astro-auth-m8": "^0.1.0-alpha.1",
     "@tanstack/react-query": "^5.101.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
