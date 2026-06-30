@@ -7,12 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MediaObjectPublic, ObjectListResponse } from "../src/runtime/schemas.js";
 
 const apiMocks = vi.hoisted(() => ({
+  deleteObject: vi.fn(),
   getDownloadUrl: vi.fn(),
   listObjects: vi.fn(),
   resolveShare: vi.fn()
 }));
 
 vi.mock("../src/runtime/api/objects.js", () => ({
+  deleteObject: apiMocks.deleteObject,
   getDownloadUrl: apiMocks.getDownloadUrl,
   listObjects: apiMocks.listObjects
 }));
@@ -118,6 +120,7 @@ describe("MediaLibrary", () => {
       url: `https://cdn.test/${objectId}.png`,
       expires_at: NOW
     }));
+    apiMocks.deleteObject.mockResolvedValue(undefined);
 
     const view = render(
       <QueryClientProvider client={createClient()}>
@@ -138,7 +141,18 @@ describe("MediaLibrary", () => {
     expect(screenPressed(view.container, "List")?.style.background).not.toBe("");
     expect(view.container.textContent).toContain("2.0 KB");
     expect(view.container.textContent).toContain("pdf");
+    expect(view.container.querySelector(".fa-media-filter-row")).not.toBeNull();
+    expect(view.container.querySelector<HTMLAnchorElement>('a[aria-label="View file-1.png"]')?.getAttribute("href")).toBe(
+      "/media/object/11111111-1111-4111-8111-000000000001"
+    );
     expect(apiMocks.getDownloadUrl).toHaveBeenCalledTimes(7);
+
+    await act(async () => {
+      view.container.querySelector<HTMLButtonElement>("tbody button.fa-media-danger")?.click();
+    });
+    await waitFor(() => {
+      expect(apiMocks.deleteObject).toHaveBeenCalledWith("11111111-1111-4111-8111-000000000001");
+    });
 
     await act(async () => {
       const statusSelect = view.container.querySelectorAll<HTMLSelectElement>("select").item(1);
@@ -162,6 +176,7 @@ describe("MediaLibrary", () => {
     expect(gridImages[0]?.getAttribute("width")).toBeNull();
     expect(screenPressed(view.container, "Grid")?.style.background).not.toBe("");
     expect(view.container.textContent).toContain("2.0 KB");
+    expect(view.container.querySelector<HTMLAnchorElement>('article a[aria-label="View file-1.png"]')).not.toBeNull();
     expect(gridImages[6]?.getAttribute("loading")).toBe("lazy");
     expect(gridImages[6]?.getAttribute("fetchpriority")).toBe("low");
 

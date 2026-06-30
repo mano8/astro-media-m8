@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import { deleteObject } from "../api/objects.js";
 import { useDownloadUrl } from "../hooks/useDownloadUrl.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
 import type { MediaCategory, MediaObjectPublic, MediaObjectStatus, ObjectListParams } from "../schemas.js";
@@ -28,6 +29,7 @@ const VIEW_LABELS: Record<MediaLibraryView, string> = {
   masonry: "Masonry"
 };
 const titleRowClassName = "fa-media-title-row flex w-full flex-wrap items-center justify-between gap-3";
+const filterRowClassName = "fa-media-filter-row flex w-full flex-col gap-3 md:flex-row md:items-center";
 const viewSwitcherClassName =
   "fa-media-view-switcher inline-flex shrink-0 rounded-lg border border-input bg-transparent p-0.5";
 const viewButtonClassName =
@@ -43,6 +45,8 @@ const cardPreviewClassName = "h-auto w-full rounded-none border-0";
 const cardBodyClassName = "fa-media-card-body grid gap-2 p-3";
 const cardTitleClassName = "m-0 truncate text-sm font-medium leading-5";
 const cardMetaClassName = "fa-media-card-meta flex flex-wrap items-center gap-2 text-xs text-muted-foreground";
+const itemActionsClassName = "fa-media-item-actions flex flex-wrap items-center gap-2";
+const actionLinkClassName = "fa-media-action-link inline-flex min-h-8 items-center rounded-lg border px-3 py-1 text-sm font-medium";
 const listPreviewStyle: CSSProperties = {
   aspectRatio: "1 / 1",
   borderRadius: "0.375rem",
@@ -160,6 +164,34 @@ function MediaObjectMeta({ object }: { object: MediaObjectPublic }) {
   );
 }
 
+function MediaObjectActions({
+  object,
+  objectHref,
+  deletingId,
+  onDelete
+}: {
+  object: MediaObjectPublic;
+  objectHref?: (id: string) => string;
+  deletingId: string | null;
+  onDelete: (object: MediaObjectPublic) => Promise<void>;
+}) {
+  const label = objectLabel(object);
+  const href = objectHref?.(object.id);
+
+  return (
+    <div className={itemActionsClassName}>
+      {href ? (
+        <a className={actionLinkClassName} href={href} aria-label={`View ${label}`}>
+          View
+        </a>
+      ) : null}
+      <button type="button" className="fa-media-danger" disabled={deletingId === object.id} onClick={() => void onDelete(object)}>
+        Delete
+      </button>
+    </div>
+  );
+}
+
 export function MediaLibrary({
   objectHref,
   initial = {}
@@ -169,7 +201,22 @@ export function MediaLibrary({
 }) {
   const [query, setQuery] = useState<ObjectListParams>(initial);
   const [view, setView] = useState<MediaLibraryView>("list");
-  const { items, count, loading, error, hasMore, loadMore } = useMediaObjects(query);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const { items, count, loading, error, hasMore, refresh, loadMore } = useMediaObjects(query);
+
+  async function handleDelete(object: MediaObjectPublic) {
+    setActionError(null);
+    setDeletingId(object.id);
+    try {
+      await deleteObject(object.id);
+      await refresh();
+    } catch {
+      setActionError("Failed to delete media");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <section className="not-content fa-media-panel">
@@ -191,49 +238,55 @@ export function MediaLibrary({
             ))}
           </div>
         </div>
-        <input
-          className={inputClassName}
-          type="search"
-          placeholder="Search filename"
-          onChange={(event) => setQuery((prev) => ({ ...prev, q: event.currentTarget.value || undefined }))}
-        />
-        <select
-          className={inputClassName}
-          onChange={(event) =>
-            setQuery((prev) => ({ ...prev, category: (event.currentTarget.value || undefined) as MediaCategory | undefined }))
-          }
-        >
-          <option value="">All categories</option>
-          {(["avatar", "document", "asset", "chat_attachment", "export", "receipt"] as MediaCategory[]).map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-        <select
-          className={inputClassName}
-          onChange={(event) =>
-            setQuery((prev) => ({
-              ...prev,
-              status: (event.currentTarget.value || undefined) as MediaObjectStatus | undefined
-            }))
-          }
-        >
-          <option value="">All statuses</option>
-          {(Object.keys(STATUS_BADGE) as MediaObjectStatus[]).map((value) => (
-            <option key={value} value={value}>
-              {STATUS_BADGE[value]}
-            </option>
-          ))}
-        </select>
+        <div className={filterRowClassName}>
+          <input
+            className={inputClassName}
+            type="search"
+            placeholder="Search filename"
+            onChange={(event) => {
+              const q = event.currentTarget.value || undefined;
+              setQuery((prev) => ({ ...prev, q }));
+            }}
+          />
+          <select
+            className={inputClassName}
+            onChange={(event) => {
+              const category = (event.currentTarget.value || undefined) as MediaCategory | undefined;
+              setQuery((prev) => ({ ...prev, category }));
+            }}
+          >
+            <option value="">All categories</option>
+            {(["avatar", "document", "asset", "chat_attachment", "export", "receipt"] as MediaCategory[]).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+          <select
+            className={inputClassName}
+            onChange={(event) => {
+              const status = (event.currentTarget.value || undefined) as MediaObjectStatus | undefined;
+              setQuery((prev) => ({ ...prev, status }));
+            }}
+          >
+            <option value="">All statuses</option>
+            {(Object.keys(STATUS_BADGE) as MediaObjectStatus[]).map((value) => (
+              <option key={value} value={value}>
+                {STATUS_BADGE[value]}
+              </option>
+            ))}
+          </select>
+        </div>
       </header>
       {error ? <p role="alert">Failed to load media</p> : null}
+      {actionError ? <p role="alert">{actionError}</p> : null}
       {view === "list" ? (
         <table className="fa-media-table">
           <thead>
             <tr>
               <th>Preview</th>
               <th>Filename</th>
+              <th>Actions</th>
               <th>Category</th>
               <th>Status</th>
               <th>Size</th>
@@ -247,6 +300,9 @@ export function MediaLibrary({
                 </td>
                 <td>
                   <MediaObjectName object={object} objectHref={objectHref} />
+                </td>
+                <td>
+                  <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} />
                 </td>
                 <td>{object.category}</td>
                 <td>
@@ -269,6 +325,7 @@ export function MediaLibrary({
                 <div className={cardMetaClassName}>
                   <MediaObjectMeta object={object} />
                 </div>
+                <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} />
               </div>
             </article>
           ))}
