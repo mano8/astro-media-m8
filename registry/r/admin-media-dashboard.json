@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "admin-media-dashboard",
+  "type": "registry:component",
+  "title": "Admin Media Dashboard",
+  "description": "Media admin view whose first/landing tab is the storage dashboard and whose destructive ops live in a guarded Maintenance tab; wraps the package's MediaProvider + RequireSuperuser. Requires @mano8/astro-media-m8 (and a fa-auth-m8 token adapter) installed.",
+  "dependencies": [
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "tabs",
+    "./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json",
+    "./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json"
+  ],
+  "files": [
+    {
+      "path": "registry/blocks/admin/admin-media-dashboard.tsx",
+      "content": "\"use client\";\n\n// Media admin view whose FIRST/landing tab is the storage dashboard; the\n// destructive operations are demoted to a guarded \"Maintenance\" tab. Headless\n// state comes from the package (@mano8/astro-media-m8/react + /hooks); this file\n// is only the shadcn skin, copied into the consumer via the @fa-m8-media\n// registry. Because media-service only accepts fa-auth-m8 tokens, the auth\n// package must also be present (pass its adapter via `adapter`). Edit per app.\nimport * as React from \"react\";\nimport { LayoutDashboard, Wrench } from \"lucide-react\";\nimport {\n  MediaProvider,\n  RequireSuperuser,\n  type MediaContextValue,\n} from \"@mano8/astro-media-m8/react\";\n\nimport { Tabs, TabsContent, TabsList, TabsTrigger } from \"@/components/ui/tabs\";\nimport {\n  MediaDashboardOverview,\n  type MediaDashboardOverviewLabels,\n} from \"@/components/fa-media/media-dashboard-overview\";\nimport {\n  MediaMaintenancePanel,\n  type MediaMaintenanceLabels,\n} from \"@/components/fa-media/media-maintenance-panel\";\n\nexport interface AdminMediaDashboardLabels {\n  dashboardTab: string;\n  maintenanceTab: string;\n  forbidden: string;\n  overview: Partial<MediaDashboardOverviewLabels>;\n  maintenance: Partial<MediaMaintenanceLabels>;\n}\n\nconst DEFAULT_LABELS: AdminMediaDashboardLabels = {\n  dashboardTab: \"Dashboard\",\n  maintenanceTab: \"Maintenance\",\n  forbidden: \"You need administrator access to view this page.\",\n  overview: {},\n  maintenance: {},\n};\n\nexport interface AdminMediaDashboardProps {\n  /** Media runtime config (apiBase/v1Base/legacyBase/adminRole). */\n  config?: React.ComponentProps<typeof MediaProvider>[\"config\"];\n  /** fa-auth-backed media auth adapter (media only accepts fa-auth-m8 tokens). */\n  adapter?: MediaContextValue[\"adapter\"];\n  labels?: Partial<AdminMediaDashboardLabels>;\n}\n\nfunction AdminMediaShell({ labels }: { labels: AdminMediaDashboardLabels }) {\n  return (\n    <RequireSuperuser\n      fallback={\n        <div className=\"not-content mx-auto w-full max-w-md py-10 text-center text-sm text-muted-foreground\">\n          {labels.forbidden}\n        </div>\n      }\n    >\n      <Tabs defaultValue=\"dashboard\" className=\"not-content mx-auto w-full max-w-6xl space-y-4\">\n        <TabsList className=\"flex h-auto flex-wrap justify-start gap-1\">\n          <TabsTrigger value=\"dashboard\" className=\"gap-2\">\n            <LayoutDashboard className=\"size-4\" />\n            {labels.dashboardTab}\n          </TabsTrigger>\n          <TabsTrigger value=\"maintenance\" className=\"gap-2\">\n            <Wrench className=\"size-4\" />\n            {labels.maintenanceTab}\n          </TabsTrigger>\n        </TabsList>\n\n        <TabsContent value=\"dashboard\">\n          <MediaDashboardOverview labels={labels.overview} />\n        </TabsContent>\n        <TabsContent value=\"maintenance\">\n          <MediaMaintenancePanel labels={labels.maintenance} />\n        </TabsContent>\n      </Tabs>\n    </RequireSuperuser>\n  );\n}\n\nexport default function AdminMediaDashboard({\n  config,\n  adapter,\n  labels,\n}: AdminMediaDashboardProps) {\n  const resolved: AdminMediaDashboardLabels = {\n    ...DEFAULT_LABELS,\n    ...labels,\n    overview: { ...DEFAULT_LABELS.overview, ...labels?.overview },\n    maintenance: { ...DEFAULT_LABELS.maintenance, ...labels?.maintenance },\n  };\n  return (\n    <MediaProvider config={config} adapter={adapter}>\n      <AdminMediaShell labels={resolved} />\n    </MediaProvider>\n  );\n}\n",
+      "type": "registry:component",
+      "target": "components/fa-media/admin-media-dashboard.tsx"
+    }
+  ]
+}

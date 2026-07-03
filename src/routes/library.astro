@@ -1,0 +1,12 @@
+---
+import { LibraryView } from "@mano8/astro-media-m8/default-ui";
+import "../scaffold/styles/media.css";
+
+const config = {
+  apiBase: import.meta.env.PUBLIC_FA_MEDIA_API_BASE,
+  v1Base: import.meta.env.PUBLIC_FA_MEDIA_V1_BASE,
+  legacyBase: import.meta.env.PUBLIC_FA_MEDIA_LEGACY_BASE,
+  adminRole: import.meta.env.PUBLIC_FA_MEDIA_ADMIN_ROLE
+};
+---
+<LibraryView client:load config={config} objectHref={(id) => `media/object/${id}`} />

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "fa-m8-media",
+  "homepage": "https://github.com/mano8/astro-media-m8",
+  "items": [
+    {
+      "name": "data-table",
+      "type": "registry:component",
+      "title": "Data Table",
+      "description": "Generic pure-shadcn data table (sorting, filtering, pagination) built on @tanstack/react-table.",
+      "dependencies": ["@tanstack/react-table"],
+      "registryDependencies": ["table", "button", "input"],
+      "files": [
+        {
+          "path": "registry/blocks/data-table/data-table.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/data-table.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-storage-chart",
+      "type": "registry:component",
+      "title": "Media Storage Chart",
+      "description": "shadcn chart preset (recharts) for media storage bytes per category, with a base-1024 byte humanizer.",
+      "dependencies": ["recharts"],
+      "registryDependencies": ["chart"],
+      "files": [
+        {
+          "path": "registry/blocks/chart/media-storage-chart.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-storage-chart.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-dashboard-overview",
+      "type": "registry:component",
+      "title": "Media Admin Dashboard Overview",
+      "description": "Media storage dashboard (stat cards + chart + subscriptions table) driven by the package's useMediaAdmin hook. Requires @mano8/astro-media-m8 installed.",
+      "dependencies": ["lucide-react", "@tanstack/react-table"],
+      "registryDependencies": [
+        "card",
+        "button",
+        "skeleton",
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-storage-chart.json",
+        "./node_modules/@mano8/astro-media-m8/registry/r/data-table.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/admin/media-dashboard-overview.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-dashboard-overview.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-maintenance-panel",
+      "type": "registry:component",
+      "title": "Media Admin Maintenance Panel",
+      "description": "Media admin danger zone (purge-stale / repair-orphans / purge-expired), each behind a shadcn alert-dialog confirmation, driven by useMediaAdmin. Requires @mano8/astro-media-m8 installed.",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": ["card", "button", "alert-dialog"],
+      "files": [
+        {
+          "path": "registry/blocks/admin/media-maintenance-panel.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-maintenance-panel.tsx"
+        }
+      ]
+    },
+    {
+      "name": "admin-media-dashboard",
+      "type": "registry:component",
+      "title": "Admin Media Dashboard",
+      "description": "Media admin view whose first/landing tab is the storage dashboard and whose destructive ops live in a guarded Maintenance tab; wraps the package's MediaProvider + RequireSuperuser. Requires @mano8/astro-media-m8 (and a fa-auth-m8 token adapter) installed.",
+      "dependencies": ["lucide-react"],
+      "registryDependencies": [
+        "tabs",
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json",
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/admin/admin-media-dashboard.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/admin-media-dashboard.tsx"
+        }
+      ]
+    }
+  ]
+}

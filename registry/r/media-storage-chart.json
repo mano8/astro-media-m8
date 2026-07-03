@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "media-storage-chart",
+  "type": "registry:component",
+  "title": "Media Storage Chart",
+  "description": "shadcn chart preset (recharts) for media storage bytes per category, with a base-1024 byte humanizer.",
+  "dependencies": [
+    "recharts"
+  ],
+  "registryDependencies": [
+    "chart"
+  ],
+  "files": [
+    {
+      "path": "registry/blocks/chart/media-storage-chart.tsx",
+      "content": "\"use client\";\n\n// Pure-shadcn bar chart preset (recharts-backed) for the media admin dashboard:\n// storage bytes per category. Copied into the consumer via the @fa-m8-media\n// registry; edit freely per app.\nimport { Bar, BarChart, CartesianGrid, XAxis, YAxis } from \"recharts\";\n\nimport {\n  type ChartConfig,\n  ChartContainer,\n  ChartTooltip,\n  ChartTooltipContent,\n} from \"@/components/ui/chart\";\n\nexport interface StorageDatum {\n  category: string;\n  bytes: number;\n  count: number;\n}\n\nexport interface MediaStorageChartProps {\n  data: StorageDatum[];\n  bytesLabel?: string;\n  className?: string;\n}\n\n/** Compact, base-1024 byte humanizer shared by the axis + tooltip. */\nexport function humanizeBytes(bytes: number): string {\n  if (!Number.isFinite(bytes) || bytes <= 0) return \"0 B\";\n  const units = [\"B\", \"KB\", \"MB\", \"GB\", \"TB\", \"PB\"];\n  const exponent = Math.min(\n    units.length - 1,\n    Math.floor(Math.log(bytes) / Math.log(1024)),\n  );\n  const value = bytes / 1024 ** exponent;\n  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;\n}\n\nexport function MediaStorageChart({\n  data,\n  bytesLabel = \"Storage\",\n  className,\n}: MediaStorageChartProps) {\n  const chartConfig = {\n    bytes: { label: bytesLabel, color: \"var(--chart-1)\" },\n  } satisfies ChartConfig;\n\n  return (\n    <ChartContainer config={chartConfig} className={className}>\n      <BarChart accessibilityLayer data={data}>\n        <CartesianGrid vertical={false} />\n        <XAxis\n          dataKey=\"category\"\n          tickLine={false}\n          tickMargin={10}\n          axisLine={false}\n        />\n        <YAxis\n          tickLine={false}\n          axisLine={false}\n          width={56}\n          tickFormatter={(value: number) => humanizeBytes(value)}\n        />\n        <ChartTooltip\n          content={\n            <ChartTooltipContent\n              formatter={(value) => humanizeBytes(Number(value))}\n            />\n          }\n        />\n        <Bar dataKey=\"bytes\" fill=\"var(--color-bytes)\" radius={4} />\n      </BarChart>\n    </ChartContainer>\n  );\n}\n",
+      "type": "registry:component",
+      "target": "components/fa-media/media-storage-chart.tsx"
+    }
+  ]
+}
