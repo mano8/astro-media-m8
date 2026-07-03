@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { createRoot, type Root } from "react-dom/client";
 import { MediaProvider, MediaQueryProvider, useMediaContext } from "../src/runtime/react/index.js";
+import { getMediaConfig, resetMediaConfig } from "../src/runtime/config.js";
 
 function flush() {
   return act(async () => {
@@ -38,6 +39,7 @@ function QueryClientProbe({ expose }: { expose: (client: QueryClient) => void })
 }
 
 beforeEach(() => {
+  resetMediaConfig();
   document.body.innerHTML = "";
 });
 
@@ -106,6 +108,24 @@ describe("MediaQueryProvider", () => {
 });
 
 describe("MediaProvider", () => {
+  it("applies runtime config before children render", () => {
+    let apiBaseDuringChildRender = "";
+
+    function ConfigProbe() {
+      apiBaseDuringChildRender = getMediaConfig().apiBase;
+      return null;
+    }
+
+    const view = render(
+      <MediaProvider config={{ apiBase: "/media-api" }}>
+        <ConfigProbe />
+      </MediaProvider>
+    );
+
+    expect(apiBaseDuringChildRender).toBe("/media-api");
+    view.unmount();
+  });
+
   it("exposes synchronous adapter users before effects run", () => {
     let context: ReturnType<typeof useMediaContext> | undefined;
     const user = { is_superuser: true };

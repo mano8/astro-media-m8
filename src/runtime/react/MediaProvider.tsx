@@ -47,12 +47,10 @@ export function MediaProvider({
   config?: Partial<Omit<MediaRuntimeConfig, "polling">> & { polling?: Partial<MediaRuntimeConfig["polling"]> };
   adapter?: MediaAuthAdapter;
 }) {
+  if (config) configureMedia(config);
+
   const resolved = adapter ?? getMediaAuthAdapter();
   const [authState, setAuthState] = useState(() => readAdapterUser(resolved));
-
-  useEffect(() => {
-    if (config) configureMedia(config);
-  }, [config]);
 
   useEffect(() => {
     if (!resolved.getUser) {
