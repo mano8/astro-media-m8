@@ -90,8 +90,8 @@
     "esbuild": "^0.28.1"
   },
   "mediaServiceM8": {
-    "contract": "media-service-m8@0.0",
-    "testedServiceVersion": "0.0.10",
-    "serviceVersionRange": ">=0.0.10 <0.1.0"
+    "contract": "media-service-m8@1.0",
+    "testedServiceVersion": "1.0.0",
+    "serviceVersionRange": ">=1.0.0 <2.0.0"
   }
 }
