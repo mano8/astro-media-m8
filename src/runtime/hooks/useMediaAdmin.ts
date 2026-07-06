@@ -41,6 +41,7 @@ export type UseMediaAdmin = {
   subscriptions: SubscriptionListResponse | null;
   loading: boolean;
   error: unknown;
+  loadAll: () => Promise<void>;
   loadStats: () => Promise<void>;
   loadStale: () => Promise<void>;
   purgeStale: () => Promise<PurgeStaleResponse>;
@@ -161,6 +162,9 @@ export function useMediaAdmin(): UseMediaAdmin {
   const loadSubscriptions = useCallback(async () => {
     await refetchOrThrow(refetchSubscriptions);
   }, [refetchSubscriptions]);
+  const loadAll = useCallback(async () => {
+    await Promise.all([loadStats(), loadStale(), loadOrphans(), loadSubscriptions()]);
+  }, [loadOrphans, loadStats, loadStale, loadSubscriptions]);
   const purgeStale = useCallback(() => purgeStaleAsync(), [purgeStaleAsync]);
   const repair = useCallback((confirm: boolean) => repairAsync(confirm), [repairAsync]);
   const purgeExpiredObjects = useCallback(() => purgeExpiredAsync(), [purgeExpiredAsync]);
@@ -194,6 +198,7 @@ export function useMediaAdmin(): UseMediaAdmin {
       purgeExpiredMutation.error ??
       removeSubscriptionMutation.error ??
       null,
+    loadAll,
     loadStats,
     loadStale,
     purgeStale,

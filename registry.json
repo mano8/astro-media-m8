@@ -27,7 +27,10 @@
       "registryDependencies": [
         "card",
         "button",
-        "skeleton",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-empty.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-loading.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json",
         "./node_modules/@mano8/astro-media-m8/registry/r/media-storage-chart.json",
         "./node_modules/@mano8/astro-ui-m8/registry/r/data-table.json"
       ],
@@ -45,7 +48,13 @@
       "title": "Media Admin Maintenance Panel",
       "description": "Media admin danger zone (purge-stale / repair-orphans / purge-expired), each behind a shadcn alert-dialog confirmation, driven by useMediaAdmin. Requires @mano8/astro-media-m8 installed.",
       "dependencies": ["lucide-react"],
-      "registryDependencies": ["card", "button", "alert-dialog"],
+      "registryDependencies": [
+        "card",
+        "button",
+        "alert-dialog",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json"
+      ],
       "files": [
         {
           "path": "registry/blocks/admin/media-maintenance-panel.tsx",
@@ -62,6 +71,7 @@
       "dependencies": ["lucide-react"],
       "registryDependencies": [
         "tabs",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json",
         "./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json",
         "./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json"
       ],

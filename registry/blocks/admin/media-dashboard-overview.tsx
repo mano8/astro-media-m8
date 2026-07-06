@@ -19,12 +19,15 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   MediaStorageChart,
   humanizeBytes,
 } from "@/components/fa-media/media-storage-chart";
 import { DataTable } from "@/components/m8-ui/data-table";
+import { StateEmpty } from "@/components/m8-ui/state-empty";
+import { StateError } from "@/components/m8-ui/state-error";
+import { StateLoading } from "@/components/m8-ui/state-loading";
+import { StateUnauthorized } from "@/components/m8-ui/state-unauthorized";
 
 export interface MediaDashboardOverviewLabels {
   title: string;
@@ -47,6 +50,11 @@ export interface MediaDashboardOverviewLabels {
   subDelete: string;
   subEmpty: string;
   error: string;
+  errorRetry: string;
+  loadingTitle: string;
+  loadingDescription: string;
+  unauthorizedTitle: string;
+  unauthorizedDescription: string;
 }
 
 const DEFAULT_LABELS: MediaDashboardOverviewLabels = {
@@ -70,6 +78,11 @@ const DEFAULT_LABELS: MediaDashboardOverviewLabels = {
   subDelete: "Delete",
   subEmpty: "No webhook subscriptions.",
   error: "Could not load admin data.",
+  errorRetry: "Try again",
+  loadingTitle: "Loading media admin data",
+  loadingDescription: "Fetching storage, orphan, upload, and subscription stats.",
+  unauthorizedTitle: "Administrator access required",
+  unauthorizedDescription: "Sign in with a superuser account to view media administration.",
 };
 
 export interface MediaDashboardOverviewProps {
@@ -105,27 +118,20 @@ export function MediaDashboardOverview({
 }: MediaDashboardOverviewProps) {
   const t = { ...DEFAULT_LABELS, ...labels };
   const {
+    allowed,
     stats,
     stale,
     orphans,
     subscriptions,
     error,
-    loadStats,
-    loadStale,
-    loadOrphans,
-    loadSubscriptions,
+    loadAll,
     removeSubscription,
   } = useMediaAdmin();
   const [ready, setReady] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
-    void Promise.allSettled([
-      loadStats(),
-      loadStale(),
-      loadOrphans(),
-      loadSubscriptions(),
-    ]).finally(() => {
+    void loadAll().finally(() => {
       if (!cancelled) setReady(true);
     });
     return () => {
@@ -134,6 +140,18 @@ export function MediaDashboardOverview({
     // The hook callbacks are stable for a given superuser identity; run once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const retryLoad = React.useCallback(() => {
+    setReady(false);
+    void loadAll().finally(() => {
+      setReady(true);
+    });
+  }, [loadAll]);
+
+  const describeError = React.useCallback(
+    (fallback: string) => (error instanceof Error && error.message ? error.message : fallback),
+    [error],
+  );
 
   const storageData = (stats?.by_category ?? []).map((row) => ({
     category: row.category,
@@ -172,26 +190,33 @@ export function MediaDashboardOverview({
     [t, removeSubscription],
   );
 
+  if (!allowed) {
+    return (
+      <StateUnauthorized
+        title={t.unauthorizedTitle}
+        description={t.unauthorizedDescription}
+      />
+    );
+  }
+
   if (!ready) {
     return (
-      <div className="not-content space-y-4" aria-busy="true">
-        <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-28 w-full" />
-          ))}
-        </div>
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <StateLoading
+        title={t.loadingTitle}
+        description={t.loadingDescription}
+        rows={6}
+      />
     );
   }
 
   if (error && !stats) {
     return (
-      <Card role="alert" className="border-destructive/50">
-        <CardContent className="py-6 text-sm text-destructive">
-          {t.error}
-        </CardContent>
-      </Card>
+      <StateError
+        title={t.error}
+        description={describeError(t.error)}
+        retryLabel={t.errorRetry}
+        onRetry={retryLoad}
+      />
     );
   }
 
@@ -247,9 +272,10 @@ export function MediaDashboardOverview({
               className="aspect-auto h-64 w-full"
             />
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              {t.storageEmpty}
-            </p>
+            <StateEmpty
+              title={t.storageByCategory}
+              description={t.storageEmpty}
+            />
           )}
         </CardContent>
       </Card>

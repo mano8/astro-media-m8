@@ -166,15 +166,17 @@ declare the namespace in `components.json` for documentation / future HTTP hosti
 | Item | `shadcn add` (run from the consumer project root) | registryDependencies | npm dependencies | Needs `@mano8/astro-media-m8`? |
 | :-- | :-- | :-- | :-- | :-- |
 | `media-storage-chart` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-storage-chart.json` | `chart` | `recharts` | no |
-| `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `skeleton`, `media-storage-chart`, `@mano8/astro-ui-m8/data-table` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
-| `media-maintenance-panel` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog` | `lucide-react` | **yes** (`useMediaAdmin`) |
-| `admin-media-dashboard` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
+| `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `media-storage-chart`, `@mano8/astro-ui-m8/data-table`, `@mano8/astro-ui-m8/state-empty`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-loading`, `@mano8/astro-ui-m8/state-unauthorized` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
+| `media-maintenance-panel` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-unauthorized` | `lucide-react` | **yes** (`useMediaAdmin`) |
+| `admin-media-dashboard` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `@mano8/astro-ui-m8/state-unauthorized`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
 
 `media-dashboard-overview` is the admin **landing** view (storage stat cards + a
 per-category storage chart + a subscriptions table built on the canonical
-`astro-ui-m8` `data-table` block, with a delete row action).
+`astro-ui-m8` `data-table` block, with shared `astro-ui-m8` loading/error/empty/
+unauthorized states and a delete row action).
 The destructive operations (purge-stale / repair-orphans / purge-expired) are demoted
-to `media-maintenance-panel`, each behind a shadcn `alert-dialog` confirmation.
+to `media-maintenance-panel`, each behind a shadcn `alert-dialog` confirmation and
+sharing the canonical `astro-ui-m8` error/unauthorized states.
 `admin-media-dashboard` is the full shell that wires both into a `Tabs` view (dashboard
 first) inside the package's `MediaProvider` + `RequireSuperuser`; drop the two panels
 into your own shell instead if you already own the media chrome (as fa-ui-m8 does).
