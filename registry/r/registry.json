@@ -4,12 +4,6 @@
   "homepage": "https://github.com/mano8/astro-media-m8",
   "items": [
     {
-      "name": "data-table",
-      "type": "registry:component",
-      "title": "Data Table",
-      "description": "Generic pure-shadcn data table (sorting, filtering, pagination) built on @tanstack/react-table."
-    },
-    {
       "name": "media-storage-chart",
       "type": "registry:component",
       "title": "Media Storage Chart",

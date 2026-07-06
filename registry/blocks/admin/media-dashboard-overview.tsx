@@ -24,7 +24,7 @@ import {
   MediaStorageChart,
   humanizeBytes,
 } from "@/components/fa-media/media-storage-chart";
-import { DataTable } from "@/components/fa-media/data-table";
+import { DataTable } from "@/components/m8-ui/data-table";
 
 export interface MediaDashboardOverviewLabels {
   title: string;

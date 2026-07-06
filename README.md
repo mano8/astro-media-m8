@@ -44,8 +44,10 @@ npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 `@mano8/astro-auth-m8` is a required peer: `media-service-m8` only accepts
 `fa-auth-m8`-issued tokens, so the plugin's auth adapter must be backed by
 `fa-auth-m8` (the official plugin, or a custom adapter that obtains those
-tokens). `react`/`react-dom` are optional — only `./react`, `./hooks` and the
-starter views need them.
+tokens). `@mano8/astro-ui-m8` is a normal dependency because the media registry
+skins compose the canonical shared table from its packaged registry output.
+`react`/`react-dom` are optional — only `./react`, `./hooks` and the starter
+views need them.
 
 ## Modes
 
@@ -163,14 +165,14 @@ declare the namespace in `components.json` for documentation / future HTTP hosti
 
 | Item | `shadcn add` (run from the consumer project root) | registryDependencies | npm dependencies | Needs `@mano8/astro-media-m8`? |
 | :-- | :-- | :-- | :-- | :-- |
-| `data-table` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/data-table.json` | `table`, `button`, `input` | `@tanstack/react-table` | no |
 | `media-storage-chart` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-storage-chart.json` | `chart` | `recharts` | no |
-| `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `skeleton`, `media-storage-chart`, `data-table` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
+| `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `skeleton`, `media-storage-chart`, `@mano8/astro-ui-m8/data-table` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
 | `media-maintenance-panel` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog` | `lucide-react` | **yes** (`useMediaAdmin`) |
 | `admin-media-dashboard` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
 
 `media-dashboard-overview` is the admin **landing** view (storage stat cards + a
-per-category storage chart + a subscriptions `data-table` with a delete row action).
+per-category storage chart + a subscriptions table built on the canonical
+`astro-ui-m8` `data-table` block, with a delete row action).
 The destructive operations (purge-stale / repair-orphans / purge-expired) are demoted
 to `media-maintenance-panel`, each behind a shadcn `alert-dialog` confirmation.
 `admin-media-dashboard` is the full shell that wires both into a `Tabs` view (dashboard
@@ -183,6 +185,9 @@ Files land under `src/components/fa-media/` (the items' `target`), import shadcn
 primitives via `@/components/ui/*`, and pull headless logic from the installed package.
 The plugin package is intentionally **not** listed in item `dependencies` (it would make
 `shadcn add` try to install an unpublished package); install it yourself as a peer.
+Consumers should install the shared UI block first or let `shadcn` resolve it from
+`./node_modules/@mano8/astro-ui-m8/registry/r/data-table.json`, which lands under
+`@/components/m8-ui/*`.
 
 ### Consumer expectations
 
