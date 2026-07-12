@@ -1,23 +1,35 @@
 # @mano8/astro-media-m8
 
+![CI/CD](https://github.com/mano8/astro-media-m8/actions/workflows/CI.yaml/badge.svg?branch=main)
+
 Astro integration and headless client for [`media-service-m8`]. The media-side
 analog of `@mano8/astro-auth-m8`: typed Zod schemas, API wrappers for the full
 media contract, a presigned-upload controller, optional React provider/hooks,
 and injectable starter routes — so any Astro stack can drive media without
 re-implementing the contract.
 
-Part of the M8 media stack: [mano8/astro-media-m8](https://github.com/mano8/astro-media-m8) works with [mano8/astro-auth-m8](https://github.com/mano8/astro-auth-m8) for fa-auth-m8 token delegation, targets the media backend at [https://github.com/mano8/media-service-m8/tree/main](https://github.com/mano8/media-service-m8/tree/main), and composes into [mano8/fa-ui-m8](https://github.com/mano8/fa-ui-m8).
+Part of the M8 media stack: [mano8/astro-media-m8](https://github.com/mano8/astro-media-m8)
+requires [mano8/astro-auth-m8](https://github.com/mano8/astro-auth-m8) as its
+auth peer for fa-auth-m8 token delegation, consumes shared UI/registry blocks
+from [mano8/astro-ui-m8](https://github.com/mano8/astro-ui-m8), targets the
+media backend at [mano8/media-service-m8](https://github.com/mano8/media-service-m8),
+and composes into the [mano8/fa-ui-m8](https://github.com/mano8/fa-ui-m8) host app.
 
-Pinned to `media-service-m8@0.0` (supported service-version range
-`>=0.0.10 <0.1.0`; see `mediaServiceM8` in `package.json`).
+### Related repositories
+
+- [`media-service-m8`](https://github.com/mano8/media-service-m8) — the FastAPI backend this plugin fronts.
+- [`astro-ui-m8`](https://github.com/mano8/astro-ui-m8) — canonical shared shadcn registry (data-table, state components) this plugin's admin views build on.
+- [`astro-auth-m8`](https://github.com/mano8/astro-auth-m8) — required auth peer; issues the fa-auth-m8 tokens this plugin's adapter consumes.
+- [`fa-ui-m8`](https://github.com/mano8/fa-ui-m8) — the Astro/Starlight host app this plugin installs into.
+
+Pinned to `media-service-m8@1.0` (supported service-version range
+`>=1.0.0 <2.0.0`; see `mediaServiceM8` in `package.json`).
 
 ## Backend contract
 
-This package targets the `media-service-m8@0.0` API contract and was tested
-against `media-service-m8` service version `0.0.10`. Supported backend service
-versions are `>=0.0.10 <0.1.0` (the floor is the first release supporting the
-media library sorting contract). The contract major.minor tracks the pre-1.0
-package line.
+This package targets the `media-service-m8@1.0` API contract and was tested
+against `media-service-m8` service version `1.0.0`. Supported backend service
+versions are `>=1.0.0 <2.0.0`.
 
 Compatibility helpers are exported from `@mano8/astro-media-m8/compatibility`.
 `media-service-m8` (>= 0.0.10) exposes a public `GET {API_PREFIX}/meta` route
@@ -47,7 +59,8 @@ npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 tokens). `@mano8/astro-ui-m8` is a normal dependency because the media registry
 skins compose the canonical shared table from its packaged registry output.
 `react`/`react-dom` are optional — only `./react`, `./hooks` and the starter
-views need them.
+views need them; `@tanstack/react-query` is a required peer once you use
+`./hooks` (`npm i @tanstack/react-query`).
 
 ## Modes
 
@@ -209,4 +222,4 @@ Consumers should install the shared UI block first or let `shadcn` resolve it fr
 - `npm run typecheck` — `tsc --noEmit`
 - `npm test` — Vitest with coverage (100% on the non-React runtime)
 
-[`media-service-m8`]: ../media-service-m8
+[`media-service-m8`]: https://github.com/mano8/media-service-m8
