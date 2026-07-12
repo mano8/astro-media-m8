@@ -531,16 +531,14 @@ describe("useMediaAdmin", () => {
     const firstLoadStale = latest!.loadStale;
     const firstLoadOrphans = latest!.loadOrphans;
     const firstLoadSubscriptions = latest!.loadSubscriptions;
+    const firstLoadAll = latest!.loadAll;
     const firstPurgeStale = latest!.purgeStale;
     const firstRepair = latest!.repair;
     const firstPurgeExpiredObjects = latest!.purgeExpiredObjects;
     const firstRemoveSubscription = latest!.removeSubscription;
 
     await act(async () => {
-      await latest?.loadStats();
-      await latest?.loadStale();
-      await latest?.loadOrphans();
-      await latest?.loadSubscriptions();
+      await latest?.loadAll();
     });
     await waitFor(() => {
       expect(latest?.stats).toEqual(stats);
@@ -557,6 +555,7 @@ describe("useMediaAdmin", () => {
     expect(latest?.loadStale).toBe(firstLoadStale);
     expect(latest?.loadOrphans).toBe(firstLoadOrphans);
     expect(latest?.loadSubscriptions).toBe(firstLoadSubscriptions);
+    expect(latest?.loadAll).toBe(firstLoadAll);
     expect(latest?.purgeStale).toBe(firstPurgeStale);
     expect(latest?.repair).toBe(firstRepair);
     expect(latest?.purgeExpiredObjects).toBe(firstPurgeExpiredObjects);
@@ -581,6 +580,7 @@ describe("useMediaAdmin", () => {
     expect(latest?.loadStale).toBe(firstLoadStale);
     expect(latest?.loadOrphans).toBe(firstLoadOrphans);
     expect(latest?.loadSubscriptions).toBe(firstLoadSubscriptions);
+    expect(latest?.loadAll).toBe(firstLoadAll);
     expect(latest?.purgeStale).toBe(firstPurgeStale);
     expect(latest?.repair).toBe(firstRepair);
     expect(latest?.purgeExpiredObjects).toBe(firstPurgeExpiredObjects);

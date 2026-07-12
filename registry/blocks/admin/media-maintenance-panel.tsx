@@ -3,7 +3,7 @@
 // Media admin "Maintenance / Danger zone": the destructive storage operations,
 // each behind a shadcn `alert-dialog` confirmation. Logic stays a live
 // dependency (@mano8/astro-media-m8/hooks); this file is only the shadcn skin,
-// copied into the consumer via the @fa-m8-media registry — edit freely per app.
+// copied into the consumer via the @fa-m8-media registry - edit freely per app.
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
 import { useMediaAdmin } from "@mano8/astro-media-m8/hooks";
@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { StateError } from "@/components/m8-ui/state-error";
+import { StateUnauthorized } from "@/components/m8-ui/state-unauthorized";
 
 export interface MediaMaintenanceLabels {
   title: string;
@@ -31,6 +33,9 @@ export interface MediaMaintenanceLabels {
   running: string;
   done: string;
   error: string;
+  errorRetry: string;
+  unauthorizedTitle: string;
+  unauthorizedDescription: string;
   purgeStaleTitle: string;
   purgeStaleDescription: string;
   repairTitle: string;
@@ -45,9 +50,12 @@ const DEFAULT_LABELS: MediaMaintenanceLabels = {
   confirmTitle: "Are you sure?",
   cancel: "Cancel",
   confirm: "Run",
-  running: "Running…",
+  running: "Running...",
   done: "Done.",
   error: "Operation failed.",
+  errorRetry: "Try again",
+  unauthorizedTitle: "Administrator access required",
+  unauthorizedDescription: "Sign in with a superuser account to run media maintenance.",
   purgeStaleTitle: "Purge stale uploads",
   purgeStaleDescription:
     "Delete upload sessions that expired before completing. Frees reserved storage keys.",
@@ -130,7 +138,34 @@ function DangerAction({
 
 export function MediaMaintenancePanel({ labels }: MediaMaintenancePanelProps) {
   const t = { ...DEFAULT_LABELS, ...labels };
-  const { purgeStale, repair, purgeExpiredObjects } = useMediaAdmin();
+  const {
+    allowed,
+    error,
+    purgeStale,
+    repair,
+    purgeExpiredObjects,
+    purgeStaleMutation,
+    repairMutation,
+    purgeExpiredMutation,
+  } = useMediaAdmin();
+
+  if (!allowed) {
+    return (
+      <StateUnauthorized
+        title={t.unauthorizedTitle}
+        description={t.unauthorizedDescription}
+      />
+    );
+  }
+
+  const retryAction =
+    purgeStaleMutation.status === "error"
+      ? () => void purgeStale()
+      : repairMutation.status === "error"
+        ? () => void repair(true)
+        : purgeExpiredMutation.status === "error"
+          ? () => void purgeExpiredObjects()
+          : undefined;
 
   return (
     <Card className="not-content border-destructive/40">
@@ -142,6 +177,14 @@ export function MediaMaintenancePanel({ labels }: MediaMaintenancePanelProps) {
         <CardDescription>{t.subtitle}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {error ? (
+          <StateError
+            title={t.error}
+            description={error instanceof Error ? error.message : t.error}
+            retryLabel={t.errorRetry}
+            onRetry={retryAction}
+          />
+        ) : null}
         <DangerAction
           title={t.purgeStaleTitle}
           description={t.purgeStaleDescription}

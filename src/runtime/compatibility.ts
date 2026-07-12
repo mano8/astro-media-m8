@@ -1,13 +1,9 @@
 export const MEDIA_SERVICE_M8_CONTRACT_ID = "media-service-m8";
-// Pre-1.0 contract: tracks the service package major.minor (0.0.x), not an
-// aspirational 1.0 — kept in lockstep with media-service-m8's CONTRACT_VERSION.
-export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "0.0";
+export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "1.0";
 export const MEDIA_SERVICE_M8_CONTRACT = `${MEDIA_SERVICE_M8_CONTRACT_ID}@${MEDIA_SERVICE_M8_CONTRACT_VERSION}` as const;
-// 0.0.10 is the first media-service-m8 release supporting the media library's
-// filename/category/status server-side sorting contract.
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "0.0.10";
-export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "0.0.10";
-export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "0.1.0";
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "1.0.0";
+export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "1.0.0";
+export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "2.0.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;
 
 export type MediaServiceM8CompatibilityStatus = "compatible" | "incompatible" | "unknown";

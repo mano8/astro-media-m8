@@ -93,6 +93,30 @@ describe("faMedia integration", () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  it("injects package starter route entrypoints for the shipped views", () => {
+    const { injectRoute } = runSetup({ mode: "starter", auth: { provider: "none" } });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: "/media/upload",
+      entrypoint: "@mano8/astro-media-m8/routes/upload.astro"
+    });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: "/media",
+      entrypoint: "@mano8/astro-media-m8/routes/library.astro"
+    });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: "/media/object/[id]",
+      entrypoint: "@mano8/astro-media-m8/routes/object/[id].astro"
+    });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: "/media/presets",
+      entrypoint: "@mano8/astro-media-m8/routes/presets.astro"
+    });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: "/admin/media",
+      entrypoint: "@mano8/astro-media-m8/routes/admin/media.astro"
+    });
+  });
+
   it("warns when the auth plugin is registered after media", () => {
     const { logger } = runSetup(
       { mode: "starter" },

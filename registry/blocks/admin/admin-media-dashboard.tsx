@@ -23,6 +23,7 @@ import {
   MediaMaintenancePanel,
   type MediaMaintenanceLabels,
 } from "@/components/fa-media/media-maintenance-panel";
+import { StateUnauthorized } from "@/components/m8-ui/state-unauthorized";
 
 export interface AdminMediaDashboardLabels {
   dashboardTab: string;
@@ -52,8 +53,11 @@ function AdminMediaShell({ labels }: { labels: AdminMediaDashboardLabels }) {
   return (
     <RequireSuperuser
       fallback={
-        <div className="not-content mx-auto w-full max-w-md py-10 text-center text-sm text-muted-foreground">
-          {labels.forbidden}
+        <div className="not-content mx-auto w-full max-w-md py-10">
+          <StateUnauthorized
+            title="Administrator access required"
+            description={labels.forbidden}
+          />
         </div>
       }
     >

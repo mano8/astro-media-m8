@@ -2,11 +2,22 @@
    override every class; nothing here assumes Tailwind, Starlight, or a theme. */
 
 .fa-media-panel {
+  --fa-media-border: var(--fa-media-border-color, var(--border, color-mix(in srgb, CanvasText 14%, Canvas)));
+  --fa-media-input-border: var(--fa-media-input-border-color, var(--fa-media-border));
+  --fa-media-popover-bg: var(--fa-media-popover-surface, var(--popover, Canvas));
+  --fa-media-popover-fg: var(--fa-media-popover-foreground, var(--popover-foreground, CanvasText));
+  --fa-media-button-bg: var(--fa-media-button-surface, var(--background, Canvas));
+  --fa-media-button-fg: var(--fa-media-button-foreground, var(--foreground, CanvasText));
+  --fa-media-muted-bg: var(--fa-media-muted-surface, var(--muted, color-mix(in srgb, CanvasText 6%, Canvas)));
+  --fa-media-badge-ready-bg: var(--fa-media-success-surface, var(--fa-media-muted-bg));
+  --fa-media-badge-failed-bg: var(--fa-media-destructive-surface, var(--fa-media-muted-bg));
+  --fa-media-badge-processing-bg: var(--fa-media-warning-surface, var(--fa-media-muted-bg));
+  --fa-media-danger-fg: var(--fa-media-destructive-foreground, var(--destructive, currentColor));
   width: 100%;
   max-width: none;
   margin: 1.5rem 0;
   padding: 1.25rem 1.5rem;
-  border: 1px solid var(--fa-media-border, #d0d7de);
+  border: 1px solid var(--fa-media-border);
   border-radius: 0.5rem;
   font-family: system-ui, sans-serif;
 }
@@ -55,7 +66,7 @@
   gap: 1rem;
   margin: 1rem 0 0;
   padding: 1rem;
-  border: 1px solid var(--fa-media-border, #d0d7de);
+  border: 1px solid var(--fa-media-border);
   border-radius: 0.5rem;
 }
 
@@ -84,15 +95,15 @@
   height: 2rem;
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--fa-media-input-border, var(--fa-media-border, #d0d7de));
+  border: 1px solid var(--fa-media-input-border);
   border-radius: 0.5rem;
   padding: 0.25rem 0.625rem;
   font: inherit;
 }
 
 .fa-media-control option {
-  background-color: var(--fa-media-popover-bg, Canvas);
-  color: var(--fa-media-popover-fg, CanvasText);
+  background-color: var(--fa-media-popover-bg);
+  color: var(--fa-media-popover-fg);
 }
 
 .fa-media-control::file-selector-button {
@@ -112,11 +123,11 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 1px solid var(--fa-media-input-border, var(--fa-media-border, #d0d7de));
+  border: 1px solid var(--fa-media-input-border);
   border-radius: 0.5rem;
-  background: var(--fa-media-button-bg, Canvas);
+  background: var(--fa-media-button-bg);
   padding: 0.25rem 0.75rem;
-  color: var(--fa-media-button-fg, CanvasText);
+  color: var(--fa-media-button-fg);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
@@ -132,7 +143,7 @@
   display: inline-flex;
   min-height: 2rem;
   align-items: center;
-  border: 1px solid var(--fa-media-input-border, var(--fa-media-border, #d0d7de));
+  border: 1px solid var(--fa-media-input-border);
   border-radius: 0.5rem;
   padding: 0.25rem 0.75rem;
   color: inherit;
@@ -157,7 +168,7 @@
 .fa-media-table td {
   text-align: left;
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--fa-media-border, #e4e8ec);
+  border-bottom: 1px solid var(--fa-media-border);
 }
 
 .fa-media-badge {
@@ -165,22 +176,22 @@
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   font-size: 0.75rem;
-  background: #eef1f4;
+  background: var(--fa-media-muted-bg);
 }
 
 .fa-media-badge--ready {
-  background: #d7f5dd;
+  background: var(--fa-media-badge-ready-bg);
 }
 
 .fa-media-badge--failed,
 .fa-media-badge--rejected {
-  background: #f8d7da;
+  background: var(--fa-media-badge-failed-bg);
 }
 
 .fa-media-badge--processing,
 .fa-media-badge--uploaded,
 .fa-media-badge--pending_upload {
-  background: #fff3cd;
+  background: var(--fa-media-badge-processing-bg);
 }
 
 .fa-media-progress {
@@ -192,17 +203,17 @@
 
 .fa-media-danger,
 .fa-media-danger-zone {
-  color: #b42318;
+  color: var(--fa-media-danger-fg);
 }
 
 .fa-media-danger-zone {
-  border-color: #f8d7da;
+  border-color: var(--fa-media-badge-failed-bg);
   margin-top: 1.5rem;
   padding: 1rem;
-  border: 1px solid #f8d7da;
+  border: 1px solid var(--fa-media-badge-failed-bg);
   border-radius: 0.5rem;
 }
 
 .fa-media-panel [role="alert"] {
-  color: #b42318;
+  color: var(--fa-media-danger-fg);
 }
