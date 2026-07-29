@@ -6,7 +6,7 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: "v8",
-      reporter: ["text", "json-summary"],
+      reporter: ["text", "json-summary", "lcov"],
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.astro", "src/runtime/hooks/**", "src/runtime/react/**"],
       thresholds: {
