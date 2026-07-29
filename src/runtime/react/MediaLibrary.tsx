@@ -11,23 +11,23 @@ type PreviewLoading = {
   fetchPriority: "high" | "low";
 };
 
-const STATUS_BADGE: Record<MediaObjectStatus, string> = {
-  pending_upload: "Pending",
-  uploaded: "Uploaded",
-  processing: "Processing",
-  ready: "Ready",
-  failed: "Failed",
-  deleted: "Deleted",
-  rejected: "Rejected"
-};
+const STATUS_OPTIONS: ReadonlyArray<{ value: MediaObjectStatus; label: string }> = [
+  { value: "pending_upload", label: "Pending" },
+  { value: "uploaded", label: "Uploaded" },
+  { value: "processing", label: "Processing" },
+  { value: "ready", label: "Ready" },
+  { value: "failed", label: "Failed" },
+  { value: "deleted", label: "Deleted" },
+  { value: "rejected", label: "Rejected" }
+];
 const inputClassName =
   "fa-media-control h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40";
 
-const VIEW_LABELS: Record<MediaLibraryView, string> = {
-  list: "List",
-  grid: "Grid",
-  masonry: "Masonry"
-};
+const VIEW_OPTIONS: ReadonlyArray<{ value: MediaLibraryView; label: string }> = [
+  { value: "list", label: "List" },
+  { value: "grid", label: "Grid" },
+  { value: "masonry", label: "Masonry" }
+];
 const titleRowClassName = "fa-media-title-row flex w-full flex-wrap items-center justify-between gap-3";
 const filterRowClassName = "fa-media-filter-row flex w-full flex-col gap-3 md:flex-row md:items-center";
 const viewSwitcherClassName =
@@ -90,7 +90,11 @@ function humanizeBytes(bytes: number): string {
     unitIndex += 1;
   }
 
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units.at(unitIndex) ?? "TB"}`;
+}
+
+function statusLabel(status: MediaObjectStatus): string {
+  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
 
 function MediaObjectPreview({
@@ -158,7 +162,7 @@ function MediaObjectMeta({ object }: { object: MediaObjectPublic }) {
   return (
     <>
       <span>{object.category}</span>
-      <span className={`fa-media-badge fa-media-badge--${object.status}`}>{STATUS_BADGE[object.status]}</span>
+      <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
       <span>{humanizeBytes(object.size_bytes)}</span>
     </>
   );
@@ -224,7 +228,7 @@ export function MediaLibrary({
         <div className={titleRowClassName}>
           <h2>Media library ({count})</h2>
           <div className={viewSwitcherClassName} aria-label="Media library view">
-            {(Object.keys(VIEW_LABELS) as MediaLibraryView[]).map((value) => (
+            {VIEW_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
@@ -233,7 +237,7 @@ export function MediaLibrary({
                 style={view === value ? activeViewButtonStyle : undefined}
                 onClick={() => setView(value)}
               >
-                {VIEW_LABELS[value]}
+                {label}
               </button>
             ))}
           </div>
@@ -270,9 +274,9 @@ export function MediaLibrary({
             }}
           >
             <option value="">All statuses</option>
-            {(Object.keys(STATUS_BADGE) as MediaObjectStatus[]).map((value) => (
+            {STATUS_OPTIONS.map(({ value, label }) => (
               <option key={value} value={value}>
-                {STATUS_BADGE[value]}
+                {label}
               </option>
             ))}
           </select>
@@ -306,7 +310,7 @@ export function MediaLibrary({
                 </td>
                 <td>{object.category}</td>
                 <td>
-                  <span className={`fa-media-badge fa-media-badge--${object.status}`}>{STATUS_BADGE[object.status]}</span>
+                  <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
                 </td>
                 <td>{humanizeBytes(object.size_bytes)}</td>
               </tr>

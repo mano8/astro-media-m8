@@ -52,7 +52,7 @@ export function mediaRedirect(
   page: keyof BuiltMediaRoutes,
   locale?: string
 ): string {
-  const route = routes[page];
+  const route = Reflect.get(routes, page) as string | undefined;
   if (!route) return "/";
   return routeForLocale(route, locale);
 }

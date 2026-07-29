@@ -44,7 +44,7 @@ export function useMediaVariants(objectId: string | null): UseMediaVariants {
       setJob(started);
       return waitForVariantJob(objectId, started.id, { onUpdate: setJob });
     },
-    onSuccess: async (_finished) => {
+    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey, exact: true }),
         objectId

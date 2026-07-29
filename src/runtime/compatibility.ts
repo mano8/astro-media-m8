@@ -46,20 +46,26 @@ function contractObjectVersion(value: unknown): string | undefined {
 }
 
 function parseSemver(version: string): [number, number, number] | undefined {
-  const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(version);
-  if (!match) return undefined;
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  const [withoutBuild = ""] = version.split("+", 1);
+  const [core = ""] = withoutBuild.split("-", 1);
+  const parts = core.split(".");
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => part.length === 0 || [...part].some((character) => character < "0" || character > "9"))
+  ) {
+    return undefined;
+  }
+  const [major, minor, patch] = parts.map(Number);
+  return [major, minor, patch];
 }
 
 function compareSemver(left: string, right: string): number | undefined {
   const parsedLeft = parseSemver(left);
   const parsedRight = parseSemver(right);
   if (!parsedLeft || !parsedRight) return undefined;
-  for (let index = 0; index < parsedLeft.length; index += 1) {
-    if (parsedLeft[index] > parsedRight[index]) return 1;
-    if (parsedLeft[index] < parsedRight[index]) return -1;
-  }
-  return 0;
+  const [leftMajor, leftMinor, leftPatch] = parsedLeft;
+  const [rightMajor, rightMinor, rightPatch] = parsedRight;
+  return leftMajor - rightMajor || leftMinor - rightMinor || leftPatch - rightPatch;
 }
 
 export function isMediaServiceM8ServiceVersionCompatible(version: string): boolean {

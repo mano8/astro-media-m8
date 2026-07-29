@@ -38,6 +38,10 @@ describe("internal server client", () => {
     expect(() => createInternalMediaClient({ serviceTokenEnv: "CUSTOM_TOKEN" })).not.toThrow();
   });
 
+  it("rejects unsafe custom environment variable names", () => {
+    expect(() => createInternalMediaClient({ serviceTokenEnv: "constructor" })).toThrow(/valid environment variable name/);
+  });
+
   it("attaches the service token and calls the internal routes", async () => {
     const client = createInternalMediaClient({ token: "svc" });
     await client.applyScanResult("o1", { scan_status: "clean" });

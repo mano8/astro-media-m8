@@ -28,8 +28,11 @@ function assertServerOnly(): void {
 }
 
 function resolveServiceToken(envVar: string): string {
+  if (!/^[A-Z][A-Z0-9_]*$/.test(envVar)) {
+    throw new Error("serviceTokenEnv must be a valid environment variable name");
+  }
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  const token = env?.[envVar];
+  const token = env && Object.hasOwn(env, envVar) ? Reflect.get(env, envVar) : undefined;
   if (!token) {
     throw new Error(`Missing service token: set ${envVar} in the server environment`);
   }
