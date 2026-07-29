@@ -1,6 +1,8 @@
 # @mano8/astro-media-m8
 
 ![CI/CD](https://github.com/mano8/astro-media-m8/actions/workflows/CI.yaml/badge.svg?branch=main)
+[![codecov](https://codecov.io/github/mano8/astro-media-m8/graph/badge.svg?token=ERH4FRZGZO)](https://codecov.io/github/mano8/astro-media-m8)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/e2222d2652004dba80f4b32ba1958d56)](https://app.codacy.com/gh/mano8/astro-media-m8/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 Astro integration and headless client for [`media-service-m8`]. The media-side
 analog of `@mano8/astro-auth-m8`: typed Zod schemas, API wrappers for the full
