@@ -29,29 +29,30 @@ describe("media-service-m8 compatibility", () => {
   });
 
   it("checks the service version range", () => {
-    expect(isMediaServiceM8ServiceVersionCompatible("1.0.0")).toBe(true);
-    expect(isMediaServiceM8ServiceVersionCompatible("1.5.0")).toBe(true);
-    expect(isMediaServiceM8ServiceVersionCompatible("1.0.1")).toBe(true);
-    expect(isMediaServiceM8ServiceVersionCompatible("0.9.9")).toBe(false);
-    expect(isMediaServiceM8ServiceVersionCompatible("0.0.10")).toBe(false);
-    expect(isMediaServiceM8ServiceVersionCompatible("2.0.0")).toBe(false);
+    expect(isMediaServiceM8ServiceVersionCompatible("2.0.0")).toBe(true);
+    expect(isMediaServiceM8ServiceVersionCompatible("2.5.0")).toBe(true);
+    expect(isMediaServiceM8ServiceVersionCompatible("2.0.1")).toBe(true);
+    // The pre-role-tier 1.x line is out of range on purpose, not by oversight.
+    expect(isMediaServiceM8ServiceVersionCompatible("1.9.9")).toBe(false);
+    expect(isMediaServiceM8ServiceVersionCompatible("1.0.0")).toBe(false);
+    expect(isMediaServiceM8ServiceVersionCompatible("3.0.0")).toBe(false);
     expect(isMediaServiceM8ServiceVersionCompatible("nope")).toBe(false);
-    expect(getMediaServiceM8Compatibility({ service_version: "1.0.0" }).status).toBe("compatible");
+    expect(getMediaServiceM8Compatibility({ service_version: "2.0.0" }).status).toBe("compatible");
     expect(getMediaServiceM8Compatibility({ version: "0.9.0" }).status).toBe("incompatible");
   });
 
   it("reads the GET /meta payload shape (nested contract + version)", () => {
     const meta = {
       service: "M8MediaService",
-      version: "1.0.0",
+      version: "2.0.0",
       api_version: "v1",
       contract: { name: "media-service-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
     };
     const result = getMediaServiceM8Compatibility(meta);
     expect(result.status).toBe("compatible");
     expect(result.contractVersion).toBe("1.0");
-    expect(result.serviceVersion).toBe("1.0.0");
-    expect(getMediaServiceM8Compatibility({ version: "1.0.0", contract: { version: "2.0" } }).status).toBe(
+    expect(result.serviceVersion).toBe("2.0.0");
+    expect(getMediaServiceM8Compatibility({ version: "2.0.0", contract: { version: "2.0" } }).status).toBe(
       "incompatible"
     );
   });
@@ -63,21 +64,21 @@ describe("media-service-m8 compatibility", () => {
     // service-version and payload-shape axes drift unnoticed across the fleet.
     const meta = {
       service: "M8MediaService",
-      version: "1.0.0",
+      version: "2.0.0",
       api_version: "v1",
       contract: { name: "media-service-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
     };
     expect(getMediaServiceM8Compatibility(meta)).toMatchObject({
       status: "compatible",
       contractVersion: "1.0",
-      serviceVersion: "1.0.0"
+      serviceVersion: "2.0.0"
     });
     expect(() => assertMediaServiceM8Compatibility(meta)).not.toThrow();
 
     // Adjacent out-of-range service version on the same payload shape.
-    expect(getMediaServiceM8Compatibility({ ...meta, version: "2.0.0" })).toMatchObject({
+    expect(getMediaServiceM8Compatibility({ ...meta, version: "3.0.0" })).toMatchObject({
       status: "incompatible",
-      serviceVersion: "2.0.0"
+      serviceVersion: "3.0.0"
     });
   });
 
@@ -113,10 +114,10 @@ describe("media-service-m8 compatibility", () => {
 
   it("prefers media-specific keys for both fields", () => {
     const result = getMediaServiceM8Compatibility({
-      media_service_m8_version: "1.0.0",
+      media_service_m8_version: "2.0.0",
       media_contract: "1.0"
     });
-    expect(result.serviceVersion).toBe("1.0.0");
+    expect(result.serviceVersion).toBe("2.0.0");
     expect(result.contractVersion).toBe("1.0");
   });
 

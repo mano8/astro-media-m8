@@ -1,9 +1,15 @@
 export const MEDIA_SERVICE_M8_CONTRACT_ID = "media-service-m8";
 export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "1.0";
 export const MEDIA_SERVICE_M8_CONTRACT = `${MEDIA_SERVICE_M8_CONTRACT_ID}@${MEDIA_SERVICE_M8_CONTRACT_VERSION}` as const;
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "1.0.0";
-export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "1.0.0";
-export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "2.0.0";
+// The service version range moves with media-service-m8's package version, which
+// reached 2.0.0 for the reader/writer role tiers and the anonymous PUBLIC read
+// surface. The *contract* stays at 1.0 — the HTTP surface did not change — so
+// only this gate shifts, never MEDIA_SERVICE_M8_CONTRACT_VERSION. A pre-tier
+// 1.x service is deliberately no longer admitted: it cannot serve the
+// authorization behavior this plugin's guards assume.
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "2.0.0";
+export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "2.0.0";
+export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "3.0.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;
 
 export type MediaServiceM8CompatibilityStatus = "compatible" | "incompatible" | "unknown";
