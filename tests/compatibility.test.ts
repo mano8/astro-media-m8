@@ -56,6 +56,31 @@ describe("media-service-m8 compatibility", () => {
     );
   });
 
+  it("admits the live media-service-m8 GET /meta payload verbatim", () => {
+    // Verbatim auth-sdk-m8 ServiceMeta as media-service-m8 serves it at
+    // {API_PREFIX}/meta: PROJECT_NAME, __version__ and the CONTRACT_* settings
+    // measured at the service's HEAD. Hand-written flat fixtures are how the
+    // service-version and payload-shape axes drift unnoticed across the fleet.
+    const meta = {
+      service: "M8MediaService",
+      version: "1.0.0",
+      api_version: "v1",
+      contract: { name: "media-service-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
+    };
+    expect(getMediaServiceM8Compatibility(meta)).toMatchObject({
+      status: "compatible",
+      contractVersion: "1.0",
+      serviceVersion: "1.0.0"
+    });
+    expect(() => assertMediaServiceM8Compatibility(meta)).not.toThrow();
+
+    // Adjacent out-of-range service version on the same payload shape.
+    expect(getMediaServiceM8Compatibility({ ...meta, version: "2.0.0" })).toMatchObject({
+      status: "incompatible",
+      serviceVersion: "2.0.0"
+    });
+  });
+
   it("ignores blank metadata strings", () => {
     expect(getMediaServiceM8Compatibility({ contract: "   ", version: "   " }).status).toBe("unknown");
   });
