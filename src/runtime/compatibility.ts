@@ -45,6 +45,22 @@ function contractObjectVersion(value: unknown): string | undefined {
   return undefined;
 }
 
+// Read ``contract.name`` from the GET /meta nested contract object.
+//
+// The flat-string contract forms carry the issuer id inline (``media-service-m8@1.0``)
+// and are checked against it, but the nested object splits id and version apart.
+// Without reading ``name`` the version check alone would bless any service whose
+// contract happens to sit at the same version - and ``mount_service_meta`` is a
+// shared auth-sdk-m8 helper, so every M8 service serves this same payload shape
+// at ``{API_PREFIX}/meta``. A host pointed at the wrong sibling is exactly the
+// misconfiguration the preflight exists to name.
+function contractObjectName(value: unknown): string | undefined {
+  if (typeof value === "object" && value !== null) {
+    return stringValue((value as { name?: unknown }).name);
+  }
+  return undefined;
+}
+
 function parseSemver(version: string): [number, number, number] | undefined {
   const [withoutBuild = ""] = version.split("+", 1);
   const [core = ""] = withoutBuild.split("-", 1);
@@ -88,6 +104,22 @@ export function getMediaServiceM8Compatibility(
     stringValue(metadata.media_service_m8_version) ??
     stringValue(metadata.service_version) ??
     stringValue(metadata.version);
+
+  // Checked before the version, so a wrong service is reported as a wrong
+  // service rather than as a version mismatch. Only applies when the payload
+  // names an id at all - a nested contract without a `name` still falls through
+  // to the version comparison below.
+  const contractName = contractObjectName(metadata.contract);
+  if (contractName && contractName !== MEDIA_SERVICE_M8_CONTRACT_ID) {
+    return {
+      status: "incompatible",
+      expectedContract: MEDIA_SERVICE_M8_CONTRACT,
+      expectedServiceVersionRange: MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE,
+      contractVersion,
+      serviceVersion,
+      reason: `Expected ${MEDIA_SERVICE_M8_CONTRACT}, received the ${contractName} contract - check the configured media API base`
+    };
+  }
 
   if (
     contractVersion &&

@@ -81,6 +81,32 @@ describe("media-service-m8 compatibility", () => {
     });
   });
 
+  it("rejects another service's /meta even when its contract version matches", () => {
+    // Every M8 service serves this payload shape from the shared auth-sdk-m8
+    // `mount_service_meta` helper, so a host pointed at the wrong sibling must be
+    // named as a wrong contract, not blessed because the version digits happen to
+    // line up. fa-auth-m8 serves contract.version "2.0", but a sibling on "1.0"
+    // is the case the version comparison alone cannot catch.
+    const wrongService = {
+      service: "M8FastApi",
+      version: "1.0.0",
+      api_version: "v1",
+      contract: { name: "reparto-docente-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
+    };
+    const result = getMediaServiceM8Compatibility(wrongService);
+
+    expect(result.status).toBe("incompatible");
+    expect(result.reason).toContain("reparto-docente-m8");
+    expect(result.reason).toContain(MEDIA_SERVICE_M8_CONTRACT);
+    expect(() => assertMediaServiceM8Compatibility(wrongService)).toThrow("reparto-docente-m8");
+  });
+
+  it("accepts a nested contract that names the expected issuer", () => {
+    expect(
+      getMediaServiceM8Compatibility({ contract: { name: "media-service-m8", version: "1.0" } })
+    ).toMatchObject({ status: "compatible", contractVersion: "1.0" });
+  });
+
   it("ignores blank metadata strings", () => {
     expect(getMediaServiceM8Compatibility({ contract: "   ", version: "   " }).status).toBe("unknown");
   });
