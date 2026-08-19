@@ -183,7 +183,8 @@ export class MediaUploadController {
       this.sessionId = presigned.session_id;
     } catch (error) {
       this.emit("failed");
-      throw new UploadError("api", "Failed to initiate upload", error);
+      const message = error instanceof ApiError ? error.message : "Failed to initiate upload";
+      throw new UploadError("api", message, error);
     }
 
     try {
@@ -221,7 +222,8 @@ export class MediaUploadController {
       this.object = object;
     } catch (error) {
       this.emit("failed");
-      throw new UploadError("api", "Failed to complete upload", error);
+      const message = error instanceof ApiError ? error.message : "Failed to complete upload";
+      throw new UploadError("api", message, error);
     }
 
     if (input.waitForScan) {
@@ -244,13 +246,13 @@ export class MediaUploadController {
       if (this.controller.signal.aborted) throw new UploadError("abort", "Upload aborted");
       const object = await getObject(objectId);
       if (object.status === "rejected" || object.scan_status === "infected" || object.scan_status === "quarantined") {
-        throw new UploadError("scan", `Object rejected by scan (${object.scan_status})`);
+        throw new UploadError("scan", "This file was rejected because it failed the virus scan.");
       }
       const stillPending =
         PENDING_OBJECT_STATES.has(object.status) || PENDING_SCAN_STATES.has(object.scan_status);
       if (!stillPending) return object;
       if (Date.now() + intervalMs >= deadline) {
-        throw new UploadError("scan", "Timed out waiting for scan to finish");
+        throw new UploadError("scan", "Timed out waiting for the scan to finish.");
       }
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }

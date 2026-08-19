@@ -97,6 +97,26 @@ function statusLabel(status: MediaObjectStatus): string {
   return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
 
+const FAILED_SCAN_STATUSES = new Set(["infected", "quarantined"]);
+
+/**
+ * `scan_status` is a field distinct from `status` (an object can be
+ * `status: "ready"` yet `scan_status: "infected"` before the guard catches
+ * up), so this is a second badge beside the existing status one, not an edit
+ * to `STATUS_OPTIONS`/`statusLabel`.
+ */
+function ScanStatusBadge({ object }: { object: MediaObjectPublic }) {
+  if (!FAILED_SCAN_STATUSES.has(object.scan_status)) return null;
+  return (
+    <span
+      className="fa-media-badge fa-media-badge--scan-failed"
+      title={`Failed virus scan (${object.scan_status})`}
+    >
+      Failed virus scan
+    </span>
+  );
+}
+
 function MediaObjectPreview({
   object,
   view,
@@ -163,6 +183,7 @@ function MediaObjectMeta({ object }: { object: MediaObjectPublic }) {
     <>
       <span>{object.category}</span>
       <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
+      <ScanStatusBadge object={object} />
       <span>{humanizeBytes(object.size_bytes)}</span>
     </>
   );
@@ -311,6 +332,7 @@ export function MediaLibrary({
                 <td>{object.category}</td>
                 <td>
                   <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
+                  <ScanStatusBadge object={object} />
                 </td>
                 <td>{humanizeBytes(object.size_bytes)}</td>
               </tr>

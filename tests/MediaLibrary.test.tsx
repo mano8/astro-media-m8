@@ -193,6 +193,37 @@ describe("MediaLibrary", () => {
 
     view.unmount();
   });
+
+  it("renders a scan-failed badge, separate from the status badge, for infected/quarantined objects", async () => {
+    const items = [
+      { ...makeObject(1), status: "ready" as const, scan_status: "infected" as const },
+      { ...makeObject(2), status: "ready" as const, scan_status: "quarantined" as const },
+      { ...makeObject(3), status: "ready" as const, scan_status: "clean" as const }
+    ];
+    apiMocks.listObjects.mockResolvedValue(page(items));
+    apiMocks.getDownloadUrl.mockResolvedValue({ url: "https://cdn.test/x.png", expires_at: NOW });
+    apiMocks.deleteObject.mockResolvedValue(undefined);
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary objectHref={(id) => `/media/object/${id}`} />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(view.container.querySelectorAll("tbody tr")).toHaveLength(3);
+    });
+
+    const scanBadges = view.container.querySelectorAll(".fa-media-badge--scan-failed");
+    expect(scanBadges).toHaveLength(2);
+    expect(scanBadges[0]?.textContent).toBe("Failed virus scan");
+    expect(scanBadges[0]?.getAttribute("title")).toBe("Failed virus scan (infected)");
+    expect(scanBadges[1]?.getAttribute("title")).toBe("Failed virus scan (quarantined)");
+    // the existing status badge (mapped from `status`, not `scan_status`) is untouched
+    expect(view.container.querySelectorAll(".fa-media-badge--ready")).toHaveLength(3);
+
+    view.unmount();
+  });
 });
 
 function screenPressed(container: HTMLElement, name: string): HTMLButtonElement | null {

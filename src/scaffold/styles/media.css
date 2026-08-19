@@ -194,6 +194,17 @@
   background: var(--fa-media-badge-processing-bg);
 }
 
+.fa-media-badge--scan-failed {
+  margin-left: 0.375rem;
+  background: var(--fa-media-badge-failed-bg);
+  color: var(--fa-media-danger-fg);
+  font-weight: 600;
+}
+
+.fa-media-upload-error--scan {
+  font-weight: 600;
+}
+
 .fa-media-progress {
   display: flex;
   align-items: center;

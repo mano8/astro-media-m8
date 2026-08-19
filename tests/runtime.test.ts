@@ -14,6 +14,7 @@ import {
 import {
   ApiError,
   ForbiddenError,
+  friendlyReasonMessage,
   messageFromDetail,
   normalizeFastApiError,
   UnauthenticatedError
@@ -83,6 +84,50 @@ describe("errors", () => {
   it("normalizes FastAPI error bodies", () => {
     expect(normalizeFastApiError({ detail: "x" })).toBe("x");
     expect(normalizeFastApiError("raw")).toBe("raw");
+  });
+
+  it("unwraps a flat-object detail's message, and still handles string and {msg}-array details", () => {
+    expect(
+      messageFromDetail({ code: "upload_rejected", reason: "size_exceeded", message: "Upload rejected: size_exceeded." })
+    ).toBe("Upload rejected: size_exceeded.");
+    expect(messageFromDetail({ code: "scan_not_clean", scan_status: "infected", message: "…failed the virus scan." })).toBe(
+      "…failed the virus scan."
+    );
+    // an object without a usable `message` still falls back to undefined
+    expect(messageFromDetail({ code: "upload_rejected" })).toBeUndefined();
+    expect(messageFromDetail({ message: "   " })).toBeUndefined();
+    // string and {msg}-array branches are unchanged
+    expect(messageFromDetail("boom")).toBe("boom");
+    expect(messageFromDetail([{ msg: "a" }, { msg: "b" }])).toBe("a; b");
+  });
+
+  it("friendlyReasonMessage maps every known reason/code and falls back for unknown ones", () => {
+    expect(friendlyReasonMessage({ reason: "size_exceeded" }, "fallback")).toBe(
+      "This file is larger than the allowed size limit."
+    );
+    expect(friendlyReasonMessage({ reason: "mime_mismatch" }, "fallback")).toBe(
+      "This file type is not allowed for the selected category."
+    );
+    expect(friendlyReasonMessage({ reason: "sha256_mismatch" }, "fallback")).toBe(
+      "The uploaded file did not match its expected checksum."
+    );
+    expect(friendlyReasonMessage({ reason: "quota_bytes_exceeded" }, "fallback")).toBe(
+      "You have reached your storage quota."
+    );
+    expect(friendlyReasonMessage({ reason: "quota_objects_exceeded" }, "fallback")).toBe(
+      "You have reached the maximum number of files allowed."
+    );
+    expect(friendlyReasonMessage({ code: "scan_not_clean", scan_status: "quarantined" }, "fallback")).toBe(
+      "This file was rejected because it failed the virus scan."
+    );
+    // unknown reason falls back to the detail's own message, then to the generic fallback
+    expect(friendlyReasonMessage({ reason: "something_new", message: "server said so" }, "fallback")).toBe(
+      "server said so"
+    );
+    expect(friendlyReasonMessage({ reason: "something_new" }, "fallback")).toBe("fallback");
+    expect(friendlyReasonMessage(undefined, "fallback")).toBe("fallback");
+    // an object with neither a string `reason` nor a string `code` falls back to its `message`
+    expect(friendlyReasonMessage({ message: "raw detail message" }, "fallback")).toBe("raw detail message");
   });
 });
 
