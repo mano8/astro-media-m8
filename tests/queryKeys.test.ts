@@ -27,6 +27,7 @@ describe("mediaKeys", () => {
     expect(mediaKeys.object("obj_123")).toEqual(["media", "object", "obj_123"]);
     expect(mediaKeys.variants("obj_123")).toEqual(["media", "variants", "obj_123"]);
     expect(mediaKeys.presets()).toEqual(["media", "presets"]);
+    expect(mediaKeys.categoryTree()).toEqual(["media", "categories", "tree"]);
     expect(mediaKeys.downloadUrl("obj_123")).toEqual(["media", "download-url", "obj_123"]);
     expect(mediaKeys.adminStats()).toEqual(["media", "admin", "stats"]);
     expect(mediaKeys.adminStaleUploads()).toEqual(["media", "admin", "stale-uploads", {}]);

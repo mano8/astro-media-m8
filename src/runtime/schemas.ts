@@ -60,6 +60,57 @@ const nullableIsoDate = isoDate.nullable();
 // Media objects
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// User categories (nested, tenant-scoped, M2M — mirrors
+// media_service/db_models/categories.py CategoryNode / MediaObjectCategoryRef)
+// ---------------------------------------------------------------------------
+
+export const MediaObjectCategoryRefSchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string(),
+    path: z.string()
+  })
+  .strict();
+export type MediaObjectCategoryRef = z.infer<typeof MediaObjectCategoryRefSchema>;
+
+// Recursive node: `z.lazy` defers evaluation of `children` until parse time,
+// which is what lets a self-referential zod schema exist at all.
+export type CategoryNode = {
+  id: number;
+  owner_id: string;
+  tenant_id: string | null;
+  name: string;
+  slug: string;
+  parent_id: number | null;
+  object_count: number;
+  total_object_count: number;
+  children: CategoryNode[];
+};
+export const CategoryNodeSchema: z.ZodType<CategoryNode> = z.lazy(() =>
+  z
+    .object({
+      id: z.number().int(),
+      owner_id: uuid,
+      tenant_id: uuid.nullable().default(null),
+      name: z.string().min(1).max(50),
+      slug: z.string().min(1).max(50),
+      parent_id: z.number().int().nullable().default(null),
+      object_count: z.number().int().nonnegative().default(0),
+      total_object_count: z.number().int().nonnegative().default(0),
+      children: z.array(CategoryNodeSchema).default([])
+    })
+    .strict()
+);
+
+export const CategoryTreeSchema = z
+  .object({
+    data: z.array(CategoryNodeSchema),
+    count: z.number().int().nonnegative().default(0)
+  })
+  .strict();
+export type CategoryTree = z.infer<typeof CategoryTreeSchema>;
+
 export const MediaObjectPublicSchema = z
   .object({
     id: uuid,
@@ -79,6 +130,7 @@ export const MediaObjectPublicSchema = z
     status: MediaObjectStatusSchema,
     scan_status: ScanStatusSchema,
     moderation_status: ModerationStatusSchema,
+    categories: z.array(MediaObjectCategoryRefSchema).default([]),
     created_at: isoDate,
     updated_at: isoDate,
     deleted_at: nullableIsoDate.default(null)
@@ -90,7 +142,12 @@ export const MediaObjectUpdateSchema = z
   .object({
     visibility: MediaVisibilitySchema.optional(),
     original_filename: z.string().nullable().optional(),
-    category: MediaCategorySchema.optional()
+    category: MediaCategorySchema.optional(),
+    // Set semantics (`U4`): a body carrying `category_ids` replaces the
+    // object's whole filing — `[]` unfiles it — while omitting the field
+    // leaves the existing filing alone, so it stays optional rather than
+    // defaulting to `[]`.
+    category_ids: z.array(z.number().int()).max(50).nullable().optional()
   })
   .strict();
 export type MediaObjectUpdate = z.infer<typeof MediaObjectUpdateSchema>;
@@ -126,6 +183,11 @@ export type ObjectListParams = {
   cursor?: string;
   owner_user_id?: string;
   include_deleted?: boolean;
+  // Branch filter over the user category tree (`U4`); composes with the fixed
+  // `category` enum above rather than replacing it.
+  category_id?: number;
+  include_descendants?: boolean;
+  uncategorized?: boolean;
 };
 
 export const ScanResultRequestSchema = z
@@ -145,7 +207,13 @@ export const UploadInitiateRequestSchema = z
     visibility: MediaVisibilitySchema,
     original_filename: z.string(),
     mime_type: z.string(),
-    expected_size_bytes: z.number().int().nonnegative()
+    expected_size_bytes: z.number().int().nonnegative(),
+    // Optional user categories to file the completed object into (`U4`); the
+    // fixed `category` above is untouched and still drives policy. Optional
+    // rather than defaulted so an existing caller that omits it compiles
+    // unchanged — the server's own `default_factory=list` covers the wire
+    // omission the same way.
+    category_ids: z.array(z.number().int()).max(50).optional()
   })
   .strict();
 export type UploadInitiateRequest = z.infer<typeof UploadInitiateRequestSchema>;
@@ -507,15 +575,26 @@ export const UsersActivitySchema = z
 export type UsersActivity = z.infer<typeof UsersActivitySchema>;
 
 // ---------------------------------------------------------------------------
-// Legacy categories
+// Categories — CRUD (list/get/add/edit/delete under `legacyBase`)
 // ---------------------------------------------------------------------------
+//
+// `get`/`add`/`edit`/`delete` moved off the legacy `{success, data}` envelope
+// onto typed responses when the server controller was extracted
+// (media-service-m8 `58bc3f9`); `CategoryPublic` also grew `parent_id` and
+// `tenant_id` from the nested-category model (`U3`), on every route that
+// returns it, `list` included. `ResponseMessageSchema` /
+// `ResponseModelBaseSchema` / `ResponseModelOrMessageSchema` below are no
+// longer used by `api/categories.ts` for this reason, but stay exported —
+// dropping a published `./schemas` export is a separate, unreviewed break.
 
 export const CategoryPublicSchema = z
   .object({
     id: z.number().int(),
     owner_id: uuid,
+    tenant_id: uuid.nullable().default(null),
     name: z.string().min(1).max(50),
-    slug: z.string().min(1).max(50)
+    slug: z.string().min(1).max(50),
+    parent_id: z.number().int().nullable().default(null)
   })
   .strict();
 export type CategoryPublic = z.infer<typeof CategoryPublicSchema>;
@@ -530,7 +609,8 @@ export type CategoriesPublic = z.infer<typeof CategoriesPublicSchema>;
 
 export const CategoryCreateSchema = z
   .object({
-    name: z.string().min(1).max(50)
+    name: z.string().min(1).max(50),
+    parent_id: z.number().int().nullable().optional()
   })
   .strict();
 export type CategoryCreate = z.infer<typeof CategoryCreateSchema>;

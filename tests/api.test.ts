@@ -194,19 +194,26 @@ describe("shares API", () => {
 });
 
 describe("categories API (legacy base)", () => {
-  it("list (default + args), get, create, update, delete", async () => {
+  it("list (default + args), tree, get, create, update, delete", async () => {
     await categories.listCategories();
     expect(lastOptions()).toMatchObject({ base: "legacy", path: "/category/", query: { skip: 0, limit: 100 } });
     await categories.listCategories(5, 10);
     expect(lastOptions().query).toEqual({ skip: 5, limit: 10 });
+    await categories.getCategoryTree();
+    expect(lastOptions()).toMatchObject({ base: "legacy", method: "GET", path: "/category/tree/" });
     await categories.getCategory(3);
     expect(lastOptions().path).toBe("/category/get/3/");
-    await categories.createCategory({ name: "n" });
-    expect(lastOptions()).toMatchObject({ method: "POST", path: "/category/add/" });
-    await categories.updateCategory(3, { name: "n2" });
-    expect(lastOptions()).toMatchObject({ method: "PUT", path: "/category/edit/3/" });
+    await categories.createCategory({ name: "n", parent_id: 7 });
+    expect(lastOptions()).toMatchObject({ method: "POST", path: "/category/add/", body: { name: "n", parent_id: 7 } });
+    await categories.updateCategory(3, { name: "n2", parent_id: null });
+    expect(lastOptions()).toMatchObject({
+      method: "PUT",
+      path: "/category/edit/3/",
+      body: { name: "n2", parent_id: null }
+    });
     await categories.deleteCategory(3);
     expect(lastOptions()).toMatchObject({ method: "DELETE", path: "/category/delete/3/" });
+    expect(lastOptions().schema).toBeUndefined();
   });
 });
 
@@ -251,6 +258,7 @@ describe("api index namespaces", () => {
     expect(index.variants.waitForJob).toBe(variants.waitForVariantJob);
     expect(index.presets.create).toBe(presets.createPreset);
     expect(index.shares.resolve).toBe(shares.resolveShare);
+    expect(index.categories.tree).toBe(categories.getCategoryTree);
     expect(index.categories.update).toBe(categories.updateCategory);
     expect(index.dashboard.activityCurrent).toBe(dashboard.getActivityCurrent);
     expect(index.admin.repairOrphans).toBe(admin.repairOrphans);

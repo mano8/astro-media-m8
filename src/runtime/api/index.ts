@@ -56,6 +56,7 @@ export const shares = {
 
 export const categories = {
   list: categoriesApi.listCategories,
+  tree: categoriesApi.getCategoryTree,
   get: categoriesApi.getCategory,
   create: categoriesApi.createCategory,
   update: categoriesApi.updateCategory,
