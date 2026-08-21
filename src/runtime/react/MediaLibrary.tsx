@@ -4,7 +4,7 @@ import { useDownloadUrl } from "../hooks/useDownloadUrl.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
 import type { MediaCategory, MediaObjectPublic, MediaObjectStatus, ObjectListParams } from "../schemas.js";
 
-type MediaLibraryView = "list" | "grid" | "masonry";
+type MediaLibraryView = "list" | "grid" | "masonry" | "tree";
 
 type PreviewLoading = {
   loading: "eager" | "lazy";
@@ -26,7 +26,8 @@ const inputClassName =
 const VIEW_OPTIONS: ReadonlyArray<{ value: MediaLibraryView; label: string }> = [
   { value: "list", label: "List" },
   { value: "grid", label: "Grid" },
-  { value: "masonry", label: "Masonry" }
+  { value: "masonry", label: "Masonry" },
+  { value: "tree", label: "Tree" }
 ];
 const titleRowClassName = "fa-media-title-row flex w-full flex-wrap items-center justify-between gap-3";
 const filterRowClassName = "fa-media-filter-row flex w-full flex-col gap-3 md:flex-row md:items-center";
