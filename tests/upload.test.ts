@@ -190,6 +190,22 @@ describe("MediaUploadController", () => {
     expect(completeUpload.mock.calls[0][1].sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("carries picked user categories on initiate and omits the field when none are picked", async () => {
+    const withCategories = createMediaUploadController({ ...baseInput(), categoryIds: [3, 4] });
+    await withCategories.start();
+    expect(initiateUpload).toHaveBeenLastCalledWith(
+      expect.objectContaining({ category: "asset", category_ids: [3, 4] })
+    );
+
+    const withoutCategories = createMediaUploadController(baseInput());
+    await withoutCategories.start();
+    const body = initiateUpload.mock.calls[1][0];
+    expect(body.category_ids).toBeUndefined();
+    // The undefined key never reaches the wire, so an older service that does
+    // not know the field sees the request it always saw.
+    expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty("category_ids");
+  });
+
   it("completes without a checksum when subtle crypto is missing", async () => {
     vi.stubGlobal("crypto", {});
     const controller = createMediaUploadController({ ...baseInput(), checksum: "sha256" });

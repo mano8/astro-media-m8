@@ -46,6 +46,13 @@ export type UploadControllerInput = {
   file: Blob & { name?: string; type?: string };
   category: MediaCategory;
   visibility: MediaVisibility;
+  /**
+   * Optional user categories to file the completed object into (`U4`). The
+   * fixed `category` above is a separate axis and still drives policy. Omitted
+   * from the wire body when undefined, which is what the server's
+   * `default_factory=list` expects.
+   */
+  categoryIds?: number[];
   /** Overrides `file.name`; required when the blob has no name. */
   filename?: string;
   /** Overrides `file.type`. */
@@ -178,7 +185,10 @@ export class MediaUploadController {
         visibility: input.visibility,
         original_filename: filename,
         mime_type: mimeType,
-        expected_size_bytes: input.file.size
+        expected_size_bytes: input.file.size,
+        // `JSON.stringify` drops an undefined value, so an omitted selection
+        // never reaches the wire as an explicit `null`.
+        category_ids: input.categoryIds
       });
       this.sessionId = presigned.session_id;
     } catch (error) {

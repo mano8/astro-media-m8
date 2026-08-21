@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from "react";
 import { useMediaUpload } from "../hooks/useMediaUpload.js";
 import { ApiError, friendlyReasonMessage } from "../errors.js";
 import { UploadError } from "../upload/uploadController.js";
+import { CategoryMultiSelect } from "./CategoryMultiSelect.js";
 import type { MediaCategory, MediaObjectPublic, MediaVisibility } from "../schemas.js";
 
 const CATEGORIES: MediaCategory[] = [
@@ -36,23 +37,43 @@ function describeUploadError(error: unknown): { variant: "scan" | "validation"; 
 export function MediaUploadDropzone({
   defaultCategory = "asset",
   defaultVisibility = "private",
+  defaultCategoryIds,
+  showUserCategories = true,
   checksum = "sha256",
   onUploaded
 }: {
   defaultCategory?: MediaCategory;
   defaultVisibility?: MediaVisibility;
+  /** Pre-selected user categories for the optional nested picker. */
+  defaultCategoryIds?: number[];
+  /**
+   * Render the optional user-category picker beside the required functional
+   * category. Off gives a consumer whose deployment does not use user
+   * categories the previous two-field form back.
+   */
+  showUserCategories?: boolean;
   checksum?: "none" | "sha256";
   onUploaded?: (object: MediaObjectPublic) => void;
 }) {
   const { upload, abort, progress, error, busy } = useMediaUpload();
   const [category, setCategory] = useState<MediaCategory>(defaultCategory);
   const [visibility, setVisibility] = useState<MediaVisibility>(defaultVisibility);
+  const [categoryIds, setCategoryIds] = useState<number[]>(() => defaultCategoryIds ?? []);
 
   async function onPick(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     try {
-      const object = await upload({ file, category, visibility, checksum, waitForScan: true });
+      const object = await upload({
+        file,
+        category,
+        visibility,
+        // An empty selection is omitted rather than sent as `[]`, so an older
+        // service that does not know the field is unaffected.
+        categoryIds: categoryIds.length ? categoryIds : undefined,
+        checksum,
+        waitForScan: true
+      });
       onUploaded?.(object);
     } catch {
       // surfaced via `error`
@@ -86,6 +107,15 @@ export function MediaUploadDropzone({
           </select>
         </div>
       </div>
+      {showUserCategories ? (
+        <CategoryMultiSelect
+          value={categoryIds}
+          onChange={setCategoryIds}
+          disabled={busy}
+          idPrefix="fa-media-upload-categories"
+          emptyHint="No user categories yet. This upload will still work — the category above is the one the service requires."
+        />
+      ) : null}
       <input className={inputClassName} type="file" disabled={busy} onChange={onPick} />
       {progress ? (
         <div className="fa-media-progress" role="status">
