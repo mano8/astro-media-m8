@@ -317,3 +317,57 @@
 .fa-media-category-actions {
   margin-top: 0.5rem;
 }
+
+/* Category manager (create/rename/reparent/delete). */
+.fa-media-category-manager-tree,
+.fa-media-category-manager-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fa-media-category-manager-children {
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--fa-media-border);
+  margin-left: 0.4rem;
+}
+
+.fa-media-category-manager-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+}
+
+.fa-media-category-manager-name {
+  font-weight: 500;
+}
+
+.fa-media-category-manager-reparent-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8125rem;
+}
+
+.fa-media-category-manager-sr-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.fa-media-category-manager-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+}
+
+.fa-media-category-manager-create {
+  margin-top: 1rem;
+}
