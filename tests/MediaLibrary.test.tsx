@@ -10,7 +10,11 @@ const apiMocks = vi.hoisted(() => ({
   deleteObject: vi.fn(),
   getDownloadUrl: vi.fn(),
   listObjects: vi.fn(),
-  resolveShare: vi.fn()
+  resolveShare: vi.fn(),
+  getCategoryTree: vi.fn(),
+  createCategory: vi.fn(),
+  updateCategory: vi.fn(),
+  deleteCategory: vi.fn()
 }));
 
 vi.mock("../src/runtime/api/objects.js", () => ({
@@ -21,6 +25,18 @@ vi.mock("../src/runtime/api/objects.js", () => ({
 
 vi.mock("../src/runtime/api/shares.js", () => ({
   resolveShare: apiMocks.resolveShare
+}));
+
+// The tree view's left pane calls `useCategoryTree()`. Mocking the category
+// API module (rather than letting it load) also keeps `client.js` — and the
+// `api/index.js` barrel it re-exports, which reaches for `objects.js` exports
+// this file does not stub — out of the graph, exactly as `categoryManager`'s
+// suite does.
+vi.mock("../src/runtime/api/categories.js", () => ({
+  getCategoryTree: apiMocks.getCategoryTree,
+  createCategory: apiMocks.createCategory,
+  updateCategory: apiMocks.updateCategory,
+  deleteCategory: apiMocks.deleteCategory
 }));
 
 import { MediaLibrary } from "../src/runtime/react/MediaLibrary.js";

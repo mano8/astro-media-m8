@@ -1,8 +1,15 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { deleteObject } from "../api/objects.js";
 import { useDownloadUrl } from "../hooks/useDownloadUrl.js";
+import { useCategoryTree } from "../hooks/useMediaCategories.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
-import type { MediaCategory, MediaObjectPublic, MediaObjectStatus, ObjectListParams } from "../schemas.js";
+import type {
+  CategoryNode,
+  MediaCategory,
+  MediaObjectPublic,
+  MediaObjectStatus,
+  ObjectListParams
+} from "../schemas.js";
 
 type MediaLibraryView = "list" | "grid" | "masonry" | "tree";
 
@@ -57,14 +64,35 @@ const listPreviewStyle: CSSProperties = {
   objectFit: "cover",
   width: "clamp(4rem, 12vw, 8rem)"
 };
+const treeLayoutClassName = "fa-media-tree-layout flex w-full flex-col items-stretch gap-4 md:flex-row md:items-start";
+const treePaneClassName =
+  "fa-media-tree-pane w-full shrink-0 rounded-lg border border-border bg-card p-3 text-card-foreground md:w-64 md:max-h-[70vh] md:overflow-y-auto";
+const treeResultsClassName = "fa-media-tree-results min-w-0 flex-1";
+const treeNodeButtonClassName =
+  "fa-media-tree-select flex min-h-8 w-full items-center justify-between gap-2 rounded-md border-0 bg-transparent px-2 py-1 text-left text-sm font-normal text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 const activeViewButtonStyle: CSSProperties = {
   background: "var(--fa-media-active-bg, var(--foreground, CanvasText))",
   borderColor: "var(--fa-media-active-bg, var(--foreground, CanvasText))",
   color: "var(--fa-media-active-fg, var(--background, Canvas))"
 };
+const selectedTreeNodeStyle: CSSProperties = {
+  background: "var(--fa-media-tree-selected-bg, var(--muted, Highlight))",
+  color: "var(--fa-media-tree-selected-fg, var(--foreground, HighlightText))",
+  fontWeight: 600
+};
 
 function isImage(object: MediaObjectPublic): boolean {
   return object.mime_type.toLowerCase().startsWith("image/");
+}
+
+/**
+ * `tree` renders the **same** table body as `list` in its right pane, so every
+ * "is this the list layout?" branch (preview sizing, `<img>` classes) has to
+ * answer yes for it too. Forking a second table — and a second set of preview
+ * rules — is exactly what this predicate exists to prevent.
+ */
+function isListLayout(view: MediaLibraryView): boolean {
+  return view === "list" || view === "tree";
 }
 
 function previewLoadingFor(view: MediaLibraryView, index: number): PreviewLoading {
@@ -139,7 +167,7 @@ function MediaObjectPreview({
     return (
       <span
         className={`${previewPlaceholderClassName} fa-media-preview--file`}
-        style={view === "list" ? listPreviewStyle : undefined}
+        style={isListLayout(view) ? listPreviewStyle : undefined}
         aria-hidden="true"
       >
         {object.extension ?? "file"}
@@ -151,7 +179,7 @@ function MediaObjectPreview({
     return (
       <span
         className={`${previewPlaceholderClassName} fa-media-preview--loading`}
-        style={view === "list" ? listPreviewStyle : undefined}
+        style={isListLayout(view) ? listPreviewStyle : undefined}
         aria-label={`${objectLabel(object)} preview loading`}
       >
         {loading ? "Loading" : "Preview"}
@@ -161,12 +189,12 @@ function MediaObjectPreview({
 
   return (
     <img
-      className={view === "list" ? previewClassName : `${previewClassName} ${cardPreviewClassName}`}
+      className={isListLayout(view) ? previewClassName : `${previewClassName} ${cardPreviewClassName}`}
       src={data.url}
       alt={objectLabel(object)}
-      style={view === "list" ? listPreviewStyle : undefined}
-      width={view === "list" ? 128 : undefined}
-      height={view === "list" ? 128 : undefined}
+      style={isListLayout(view) ? listPreviewStyle : undefined}
+      width={isListLayout(view) ? 128 : undefined}
+      height={isListLayout(view) ? 128 : undefined}
       loading={loadingMode.loading}
       decoding="async"
       fetchPriority={loadingMode.fetchPriority}
@@ -218,6 +246,160 @@ function MediaObjectActions({
   );
 }
 
+/**
+ * The list body, extracted verbatim so `view === "tree"` can render **this**
+ * table in its right pane instead of forking a second one. `view` still rides
+ * along untouched because `MediaObjectPreview` keys its sizing off it.
+ */
+function MediaObjectTable({
+  items,
+  view,
+  objectHref,
+  deletingId,
+  onDelete
+}: {
+  items: readonly MediaObjectPublic[];
+  view: MediaLibraryView;
+  objectHref?: (id: string) => string;
+  deletingId: string | null;
+  onDelete: (object: MediaObjectPublic) => Promise<void>;
+}) {
+  return (
+    <table className="fa-media-table">
+      <thead>
+        <tr>
+          <th>Preview</th>
+          <th>Filename</th>
+          <th>Actions</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Size</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((object, index) => (
+          <tr key={object.id}>
+            <td>
+              <MediaObjectPreview object={object} view={view} index={index} />
+            </td>
+            <td>
+              <MediaObjectName object={object} objectHref={objectHref} />
+            </td>
+            <td>
+              <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={onDelete} />
+            </td>
+            <td>{object.category}</td>
+            <td>
+              <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
+              <ScanStatusBadge object={object} />
+            </td>
+            <td>{humanizeBytes(object.size_bytes)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/**
+ * One category row plus its subtree in the browse pane.
+ *
+ * Counts come straight from the server node: the badge shows
+ * `total_object_count` (this branch including everything under it) and names
+ * both numbers in its `title`, since a parent whose own `object_count` is 0
+ * still browses to a non-empty branch.
+ */
+function MediaCategoryBranch({
+  node,
+  depth,
+  selectedId,
+  onSelect
+}: {
+  node: CategoryNode;
+  depth: number;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
+  const isSelected = selectedId === node.id;
+
+  return (
+    <li className="fa-media-tree-node" aria-level={depth}>
+      <button
+        type="button"
+        className={treeNodeButtonClassName}
+        style={isSelected ? selectedTreeNodeStyle : undefined}
+        aria-current={isSelected ? "true" : undefined}
+        onClick={() => onSelect(node.id)}
+      >
+        <span className="fa-media-tree-name truncate">{node.name}</span>
+        <span
+          className="fa-media-badge fa-media-category-count"
+          title={`${node.object_count} directly in ${node.name}, ${node.total_object_count} including sub-categories`}
+        >
+          {node.total_object_count}
+        </span>
+      </button>
+      {node.children.length > 0 ? (
+        <ul className="fa-media-tree-children">
+          {node.children.map((child) => (
+            <MediaCategoryBranch
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+/**
+ * The left pane of the tree view: the caller's nested user categories with
+ * their counts.
+ *
+ * `useCategoryTree()` lives **here** rather than in `MediaLibrary` so the
+ * category request is only issued once the user actually opens the tree view —
+ * the list/grid/masonry views must not pay for a fetch they never render.
+ */
+function MediaCategoryTreePane({
+  selectedId,
+  onSelect
+}: {
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
+  const { tree, loading, error } = useCategoryTree();
+
+  return (
+    <aside className={treePaneClassName} aria-label="Media categories">
+      <h3>Categories</h3>
+      {error ? <p role="alert">Failed to load categories</p> : null}
+      {loading && tree.length === 0 ? <p>Loading...</p> : null}
+      {!loading && !error && tree.length === 0 ? (
+        <p className="fa-media-category-hint">
+          No user categories yet. Create one from the Categories panel to browse media by branch.
+        </p>
+      ) : null}
+      {tree.length > 0 ? (
+        <ul className="fa-media-tree-nodes">
+          {tree.map((node) => (
+            <MediaCategoryBranch
+              key={node.id}
+              node={node}
+              depth={1}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </aside>
+  );
+}
+
 export function MediaLibrary({
   objectHref,
   initial = {}
@@ -227,6 +409,11 @@ export function MediaLibrary({
 }) {
   const [query, setQuery] = useState<ObjectListParams>(initial);
   const [view, setView] = useState<MediaLibraryView>("list");
+  // Which branch the tree pane has selected. Turning this into
+  // `query.category_id` / `include_descendants` (and the "All"/"Uncategorized"
+  // pseudo-nodes that clear or invert it) is the next `U7` checkbox; this one
+  // owns the layout and the selection itself.
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const { items, count, loading, error, hasMore, refresh, loadMore } = useMediaObjects(query);
@@ -306,40 +493,27 @@ export function MediaLibrary({
       </header>
       {error ? <p role="alert">Failed to load media</p> : null}
       {actionError ? <p role="alert">{actionError}</p> : null}
-      {view === "list" ? (
-        <table className="fa-media-table">
-          <thead>
-            <tr>
-              <th>Preview</th>
-              <th>Filename</th>
-              <th>Actions</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Size</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((object, index) => (
-              <tr key={object.id}>
-                <td>
-                  <MediaObjectPreview object={object} view={view} index={index} />
-                </td>
-                <td>
-                  <MediaObjectName object={object} objectHref={objectHref} />
-                </td>
-                <td>
-                  <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} />
-                </td>
-                <td>{object.category}</td>
-                <td>
-                  <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
-                  <ScanStatusBadge object={object} />
-                </td>
-                <td>{humanizeBytes(object.size_bytes)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {view === "tree" ? (
+        <div className={treeLayoutClassName}>
+          <MediaCategoryTreePane selectedId={selectedCategoryId} onSelect={setSelectedCategoryId} />
+          <div className={treeResultsClassName}>
+            <MediaObjectTable
+              items={items}
+              view={view}
+              objectHref={objectHref}
+              deletingId={deletingId}
+              onDelete={handleDelete}
+            />
+          </div>
+        </div>
+      ) : view === "list" ? (
+        <MediaObjectTable
+          items={items}
+          view={view}
+          objectHref={objectHref}
+          deletingId={deletingId}
+          onDelete={handleDelete}
+        />
       ) : (
         <div className={view === "grid" ? gridClassName : masonryClassName}>
           {items.map((object, index) => (
