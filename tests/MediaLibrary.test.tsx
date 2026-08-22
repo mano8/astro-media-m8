@@ -271,6 +271,36 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 
+  it("renders four switcher options and Tree activates the two-pane layout", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: [categoryNode(10, "Invoices")], count: 1 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+
+    const switcher = view.container.querySelector('[aria-label="Media library view"]');
+    const options = [...(switcher?.querySelectorAll("button") ?? [])].map((button) => button.textContent);
+    expect(options).toEqual(["List", "Grid", "Masonry", "Tree"]);
+    // selecting Tree must not fetch the category tree before it is pressed
+    expect(apiMocks.getCategoryTree).not.toHaveBeenCalled();
+
+    await openTree(view.container);
+
+    expect(apiMocks.getCategoryTree).toHaveBeenCalledTimes(1);
+    expect(screenPressed(view.container, "Tree")).not.toBeNull();
+    // two-pane layout: the category pane and the (reused) results table both render
+    expect(view.container.querySelector(".fa-media-tree-layout")).not.toBeNull();
+    expect(view.container.querySelector('aside[aria-label="Media categories"]')).not.toBeNull();
+    expect(view.container.querySelectorAll("table.fa-media-table")).toHaveLength(1);
+    expect(view.container.querySelector(".fa-media-tree-results table.fa-media-table")).not.toBeNull();
+
+    view.unmount();
+  });
+
   it("renders a scan-failed badge, separate from the status badge, for infected/quarantined objects", async () => {
     const items = [
       { ...makeObject(1), status: "ready" as const, scan_status: "infected" as const },
