@@ -59,7 +59,7 @@
     "test:unit": "vitest run"
   },
   "dependencies": {
-    "@mano8/astro-ui-m8": "^1.4.0"
+    "@mano8/astro-ui-m8": "^1.5.0"
   },
   "peerDependencies": {
     "@astrojs/react": "^6.0.1",

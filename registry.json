@@ -82,6 +82,46 @@
           "target": "components/fa-media/admin-media-dashboard.tsx"
         }
       ]
+    },
+    {
+      "name": "media-category-tree",
+      "type": "registry:component",
+      "title": "Media Category Tree",
+      "description": "shadcn skin over astro-ui-m8's generic tree-view for the nested user category tree, with All/Uncategorized pseudo-nodes, driven by the package's useCategoryTree hook. Requires @mano8/astro-media-m8 installed.",
+      "registryDependencies": [
+        "./node_modules/@mano8/astro-ui-m8/registry/r/tree-view.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-empty.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-loading.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/library/media-category-tree.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-category-tree.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-library-tree",
+      "type": "registry:component",
+      "title": "Media Library Tree View",
+      "description": "Two-pane documents tree view: media-category-tree (left) paired with astro-ui-m8's data-table (right), scoped to the selected branch via the package's useMediaObjects hook. Requires @mano8/astro-media-m8 installed.",
+      "dependencies": ["@tanstack/react-table"],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/data-table.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-category-tree.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/library/media-library-tree.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-library-tree.tsx"
+        }
+      ]
     }
   ]
 }
