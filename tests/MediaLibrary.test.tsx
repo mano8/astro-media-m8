@@ -4,7 +4,7 @@ import React, { type ReactNode } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MediaObjectPublic, ObjectListResponse } from "../src/runtime/schemas.js";
+import type { CategoryNode, MediaObjectPublic, ObjectListResponse } from "../src/runtime/schemas.js";
 
 const apiMocks = vi.hoisted(() => ({
   deleteObject: vi.fn(),
@@ -117,6 +117,46 @@ function makeObject(index: number, mimeType = "image/png"): MediaObjectPublic {
 
 function page(items: MediaObjectPublic[]): ObjectListResponse {
   return { items, next_cursor: null, count: items.length };
+}
+
+function categoryNode(id: number, name: string, children: CategoryNode[] = []): CategoryNode {
+  return {
+    id,
+    owner_id: OWNER_ID,
+    tenant_id: null,
+    name,
+    slug: name.toLowerCase(),
+    parent_id: null,
+    object_count: 2,
+    total_object_count: 5,
+    children
+  };
+}
+
+function click(el: Element | null | undefined) {
+  act(() => {
+    (el as HTMLElement).click();
+  });
+}
+
+function rowByName(container: HTMLElement, name: string): HTMLButtonElement {
+  const found = [...container.querySelectorAll<HTMLButtonElement>(".fa-media-tree-select")].find(
+    (button) => button.querySelector(".fa-media-tree-name")?.textContent === name
+  );
+  if (!found) throw new Error(`no tree row named ${name}`);
+  return found;
+}
+
+async function openTree(container: HTMLElement) {
+  const treeButton = [...container.querySelectorAll("button")].find((b) => b.textContent === "Tree");
+  click(treeButton);
+  await waitFor(() => {
+    expect(container.querySelector('aside[aria-label="Media categories"]')).toBeTruthy();
+  });
+}
+
+function lastListCall() {
+  return apiMocks.listObjects.mock.calls.at(-1)?.[0] as Record<string, unknown>;
 }
 
 beforeEach(() => {
@@ -237,6 +277,82 @@ describe("MediaLibrary", () => {
     expect(scanBadges[1]?.getAttribute("title")).toBe("Failed virus scan (quarantined)");
     // the existing status badge (mapped from `status`, not `scan_status`) is untouched
     expect(view.container.querySelectorAll(".fa-media-badge--ready")).toHaveLength(3);
+
+    view.unmount();
+  });
+
+  it("composes the toolbar filters with the tree branch selection in both directions", async () => {
+    const tree = [categoryNode(10, "Invoices"), categoryNode(20, "Contracts")];
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 2 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+
+    // toolbar filter set first, then a branch selected: the branch must not drop `q`.
+    const search = view.container.querySelector<HTMLInputElement>('input[type="search"]');
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(search, "invoice");
+      search!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await waitFor(() => expect(lastListCall()).toMatchObject({ q: "invoice" }));
+
+    click(rowByName(view.container, "Contracts"));
+    await waitFor(() =>
+      expect(lastListCall()).toMatchObject({ q: "invoice", category_id: 20, include_descendants: true })
+    );
+
+    // branch already selected, then a toolbar filter changed: the toolbar change must not
+    // clear the branch selection.
+    const status = view.container.querySelectorAll<HTMLSelectElement>("select")[1];
+    await act(async () => {
+      status.value = "ready";
+      status.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await waitFor(() =>
+      expect(lastListCall()).toMatchObject({
+        q: "invoice",
+        status: "ready",
+        category_id: 20,
+        include_descendants: true
+      })
+    );
+    expect(rowByName(view.container, "Contracts").getAttribute("aria-current")).toBe("true");
+
+    view.unmount();
+  });
+
+  it("treats the tree view's preview loading like list: lazy/low for every image", async () => {
+    const items = Array.from({ length: 8 }, (_value, index) => makeObject(index + 1));
+    apiMocks.listObjects.mockResolvedValue(page(items));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: [], count: 0 });
+    apiMocks.getDownloadUrl.mockImplementation(async (objectId: string) => ({
+      url: `https://cdn.test/${objectId}.png`,
+      expires_at: NOW
+    }));
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+
+    await waitFor(() => {
+      expect(view.container.querySelectorAll(".fa-media-tree-results img")).toHaveLength(8);
+    });
+    const treeImages = view.container.querySelectorAll(".fa-media-tree-results img");
+    for (const img of treeImages) {
+      expect(img.getAttribute("loading")).toBe("lazy");
+      expect(img.getAttribute("fetchpriority")).toBe("low");
+    }
 
     view.unmount();
   });

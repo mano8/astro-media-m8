@@ -136,8 +136,14 @@ function isListLayout(view: MediaLibraryView): boolean {
   return view === "list" || view === "tree";
 }
 
+/**
+ * `tree`'s right pane renders the same table as `list` (`isListLayout`), so it
+ * gets the same lazy/low preview loading — spelled out explicitly rather than
+ * left to the trailing fallback, so a future view added to the fallthrough
+ * cannot silently inherit `tree`'s eager-loading exemption by accident.
+ */
 function previewLoadingFor(view: MediaLibraryView, index: number): PreviewLoading {
-  if (view === "list") return { loading: "lazy", fetchPriority: "low" };
+  if (view === "list" || view === "tree") return { loading: "lazy", fetchPriority: "low" };
   if (view === "grid" && index < 6) return { loading: "eager", fetchPriority: "high" };
   if (view === "masonry" && index < 4) return { loading: "eager", fetchPriority: "high" };
   return { loading: "lazy", fetchPriority: "low" };
