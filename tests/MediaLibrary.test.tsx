@@ -139,12 +139,33 @@ function click(el: Element | null | undefined) {
   });
 }
 
-function rowByName(container: HTMLElement, name: string): HTMLButtonElement {
-  const found = [...container.querySelectorAll<HTMLButtonElement>(".fa-media-tree-select")].find(
-    (button) => button.querySelector(".fa-media-tree-name")?.textContent === name
+// The clickable row is a non-focusable `<span>` inside the `<li role="treeitem">`
+// that owns the tab stop, so this returns the row and `treeItemByName` its
+// treeitem — the element carrying `aria-selected`/`aria-level`/`tabindex`.
+function rowByName(container: HTMLElement, name: string): HTMLElement {
+  const found = [...container.querySelectorAll<HTMLElement>(".fa-media-tree-select")].find(
+    (row) => row.querySelector(".fa-media-tree-name")?.textContent === name
   );
   if (!found) throw new Error(`no tree row named ${name}`);
   return found;
+}
+
+function treeItemByName(container: HTMLElement, name: string): HTMLLIElement {
+  const item = rowByName(container, name).closest<HTMLLIElement>('li[role="treeitem"]');
+  if (!item) throw new Error(`tree row ${name} is not inside a treeitem`);
+  return item;
+}
+
+function toggleByName(container: HTMLElement, name: string): HTMLElement {
+  const toggle = rowByName(container, name).querySelector<HTMLElement>(".fa-media-tree-toggle");
+  if (!toggle) throw new Error(`tree row ${name} has no toggle`);
+  return toggle;
+}
+
+function press(item: HTMLElement, key: string) {
+  act(() => {
+    item.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  });
 }
 
 async function openTree(container: HTMLElement) {
@@ -323,7 +344,7 @@ describe("MediaLibrary", () => {
         include_descendants: true
       })
     );
-    expect(rowByName(view.container, "Contracts").getAttribute("aria-current")).toBe("true");
+    expect(treeItemByName(view.container, "Contracts").getAttribute("aria-selected")).toBe("true");
 
     view.unmount();
   });
@@ -353,6 +374,168 @@ describe("MediaLibrary", () => {
       expect(img.getAttribute("loading")).toBe("lazy");
       expect(img.getAttribute("fetchpriority")).toBe("low");
     }
+
+    view.unmount();
+  });
+
+  it("exposes the tree pane as a role=tree matching the shared tree-view a11y contract", async () => {
+    const tree = [
+      categoryNode(10, "Invoices", [categoryNode(11, "2025"), categoryNode(12, "2026")]),
+      categoryNode(20, "Contracts")
+    ];
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 4 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
+
+    // the pane collapses above the list on narrow viewports and only becomes a
+    // second column at `md`, with its own bounded, scrollable height so a deep
+    // tree cannot push the results off the bottom of the screen
+    const layout = view.container.querySelector<HTMLElement>(".fa-media-tree-layout");
+    expect(layout?.className).toContain("flex-col");
+    expect(layout?.className).toContain("md:flex-row");
+    const pane = view.container.querySelector<HTMLElement>(".fa-media-tree-pane");
+    expect(pane?.className).toContain("max-h-[50vh]");
+    expect(pane?.className).toContain("overflow-y-auto");
+    expect(pane?.className).toContain("md:w-64");
+
+    // roles: one tree, named by the pane heading, with a group per open branch
+    const treeRoot = view.container.querySelector<HTMLElement>('ul[role="tree"]');
+    expect(treeRoot).not.toBeNull();
+    const heading = view.container.ownerDocument.getElementById(treeRoot?.getAttribute("aria-labelledby") ?? "");
+    expect(heading?.textContent).toBe("Categories");
+    expect(view.container.querySelectorAll('ul[role="group"]')).toHaveLength(1);
+
+    // depth, expansion and selection state
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-level")).toBe("1");
+    expect(treeItemByName(view.container, "2025").getAttribute("aria-level")).toBe("2");
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-expanded")).toBe("true");
+    // leaves declare no expansion state at all, pseudo-rows included
+    expect(treeItemByName(view.container, "2025").getAttribute("aria-expanded")).toBeNull();
+    expect(treeItemByName(view.container, "All media").getAttribute("aria-expanded")).toBeNull();
+    expect(treeItemByName(view.container, "All media").getAttribute("aria-selected")).toBe("true");
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-selected")).toBe("false");
+
+    // the treeitem is named over its own label + count rather than by content,
+    // which would drag the nested group into the accessible name
+    const labelledBy = (treeItemByName(view.container, "Invoices").getAttribute("aria-labelledby") ?? "").split(" ");
+    expect(labelledBy).toHaveLength(2);
+    expect(labelledBy.map((id) => view.container.ownerDocument.getElementById(id)?.textContent)).toEqual([
+      "Invoices",
+      "5"
+    ]);
+    // a pseudo-row carries no count, so it is named by its label alone
+    expect((treeItemByName(view.container, "All media").getAttribute("aria-labelledby") ?? "").split(" ")).toHaveLength(
+      1
+    );
+
+    // roving tabindex: exactly one tab stop, on the selected row — and no
+    // focusable descendant inside a treeitem to compete with it
+    const tabbable = [...view.container.querySelectorAll('li[role="treeitem"]')].filter(
+      (item) => item.getAttribute("tabindex") === "0"
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable.at(0)).toBe(treeItemByName(view.container, "All media"));
+    expect(view.container.querySelectorAll(".fa-media-tree-pane button")).toHaveLength(0);
+
+    // the focus ring is drawn on the row off the treeitem's :focus-visible, so
+    // it does not wrap the whole subtree the <li> contains
+    expect(rowByName(view.container, "Invoices").className).toContain("[li:focus-visible>&]:ring-3");
+
+    // pointer toggling collapses a branch without selecting it
+    click(toggleByName(view.container, "Invoices"));
+    await waitFor(() => expect(view.container.querySelectorAll('ul[role="group"]')).toHaveLength(0));
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-expanded")).toBe("false");
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-selected")).toBe("false");
+    expect(treeItemByName(view.container, "All media").getAttribute("aria-selected")).toBe("true");
+
+    view.unmount();
+  });
+
+  it("navigates the tree pane by keyboard and selects the focused branch", async () => {
+    const tree = [
+      categoryNode(10, "Invoices", [categoryNode(11, "2025"), categoryNode(12, "2026")]),
+      categoryNode(20, "Contracts")
+    ];
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 4 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
+
+    const active = () => view.container.ownerDocument.activeElement;
+    const all = treeItemByName(view.container, "All media");
+    act(() => {
+      all.focus();
+    });
+
+    // ArrowDown/ArrowUp walk the visible rows, pseudo-rows included
+    press(all, "ArrowDown");
+    expect(active()).toBe(treeItemByName(view.container, "Uncategorized"));
+    press(treeItemByName(view.container, "Uncategorized"), "ArrowDown");
+    expect(active()).toBe(treeItemByName(view.container, "Invoices"));
+    // the single tab stop rides along with focus
+    expect(treeItemByName(view.container, "Invoices").getAttribute("tabindex")).toBe("0");
+    expect(treeItemByName(view.container, "All media").getAttribute("tabindex")).toBe("-1");
+
+    // ArrowRight on an open branch steps into it; ArrowLeft on a leaf steps out
+    press(treeItemByName(view.container, "Invoices"), "ArrowRight");
+    expect(active()).toBe(treeItemByName(view.container, "2025"));
+    press(treeItemByName(view.container, "2025"), "ArrowDown");
+    expect(active()).toBe(treeItemByName(view.container, "2026"));
+    press(treeItemByName(view.container, "2026"), "ArrowUp");
+    expect(active()).toBe(treeItemByName(view.container, "2025"));
+    press(treeItemByName(view.container, "2025"), "ArrowLeft");
+    expect(active()).toBe(treeItemByName(view.container, "Invoices"));
+
+    // ArrowLeft closes the open branch it is on, ArrowRight reopens it
+    press(treeItemByName(view.container, "Invoices"), "ArrowLeft");
+    await waitFor(() =>
+      expect(treeItemByName(view.container, "Invoices").getAttribute("aria-expanded")).toBe("false")
+    );
+    expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4);
+    press(treeItemByName(view.container, "Invoices"), "ArrowRight");
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
+
+    // End/Home jump to the ends of the visible list; ArrowUp on the first row stays put
+    press(treeItemByName(view.container, "Invoices"), "End");
+    expect(active()).toBe(treeItemByName(view.container, "Contracts"));
+    press(treeItemByName(view.container, "Contracts"), "Home");
+    expect(active()).toBe(treeItemByName(view.container, "All media"));
+    press(treeItemByName(view.container, "All media"), "ArrowUp");
+    expect(active()).toBe(treeItemByName(view.container, "All media"));
+
+    // Enter selects the focused branch and filters the list beside it
+    press(treeItemByName(view.container, "Contracts"), "Enter");
+    await waitFor(() => expect(lastListCall()).toMatchObject({ category_id: 20, include_descendants: true }));
+    expect(treeItemByName(view.container, "Contracts").getAttribute("aria-selected")).toBe("true");
+    expect(treeItemByName(view.container, "All media").getAttribute("aria-selected")).toBe("false");
+
+    // Space selects too; an unhandled key is left to the page
+    press(treeItemByName(view.container, "2026"), " ");
+    await waitFor(() => expect(lastListCall()).toMatchObject({ category_id: 12, include_descendants: true }));
+    const callsBefore = apiMocks.listObjects.mock.calls.length;
+    press(treeItemByName(view.container, "2026"), "a");
+    expect(apiMocks.listObjects.mock.calls).toHaveLength(callsBefore);
+
+    // the pseudo-rows are reachable by keyboard as well, and clear the branch keys
+    press(treeItemByName(view.container, "Uncategorized"), "Enter");
+    await waitFor(() => expect(lastListCall()).toMatchObject({ uncategorized: true }));
+    expect(lastListCall().category_id).toBeUndefined();
+    expect(lastListCall().include_descendants).toBeUndefined();
 
     view.unmount();
   });
