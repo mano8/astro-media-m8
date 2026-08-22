@@ -332,6 +332,89 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 
+  it("filters the list by the selected branch, by Uncategorized, and clears it on All", async () => {
+    const tree = [categoryNode(10, "Invoices", [categoryNode(11, "2026")]), categoryNode(20, "Contracts")];
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 3 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(5));
+    const beforeBranch = apiMocks.listObjects.mock.calls.length;
+
+    // a server node sends `category_id` + `include_descendants` — on a *new*
+    // request, which is the half `useMediaObjects`' explicit memo list can drop
+    // silently: params it does not hash never change the query key.
+    click(rowByName(view.container, "Invoices"));
+    await waitFor(() => {
+      expect(apiMocks.listObjects.mock.calls.length).toBeGreaterThan(beforeBranch);
+      expect(lastListCall()).toMatchObject({ category_id: 10, include_descendants: true });
+    });
+    expect(lastListCall().uncategorized).toBeUndefined();
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-selected")).toBe("true");
+
+    // a nested child replaces the parent's selection rather than adding to it
+    click(rowByName(view.container, "2026"));
+    await waitFor(() => expect(lastListCall()).toMatchObject({ category_id: 11, include_descendants: true }));
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-selected")).toBe("false");
+
+    // "Uncategorized" sends `uncategorized` with both branch keys cleared, not
+    // left stale beside it
+    click(rowByName(view.container, "Uncategorized"));
+    await waitFor(() => expect(lastListCall().uncategorized).toBe(true));
+    expect(lastListCall().category_id).toBeUndefined();
+    expect(lastListCall().include_descendants).toBeUndefined();
+    expect(treeItemByName(view.container, "Uncategorized").getAttribute("aria-selected")).toBe("true");
+
+    // "All media" clears all three
+    click(rowByName(view.container, "All media"));
+    await waitFor(() => {
+      const call = lastListCall();
+      expect(call.category_id).toBeUndefined();
+      expect(call.include_descendants).toBeUndefined();
+      expect(call.uncategorized).toBeUndefined();
+    });
+    expect(treeItemByName(view.container, "All media").getAttribute("aria-selected")).toBe("true");
+
+    // reselecting the branch the list already shows is not a new request
+    click(rowByName(view.container, "Contracts"));
+    await waitFor(() => expect(lastListCall()).toMatchObject({ category_id: 20, include_descendants: true }));
+    const settled = apiMocks.listObjects.mock.calls.length;
+    click(rowByName(view.container, "Contracts"));
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20);
+      });
+    });
+    expect(apiMocks.listObjects.mock.calls).toHaveLength(settled);
+
+    view.unmount();
+  });
+
+  it("opens the pane on a caller-supplied initial branch filter", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: [categoryNode(20, "Contracts")], count: 1 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary initial={{ category_id: 20, include_descendants: true }} />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(lastListCall()).toMatchObject({ category_id: 20 }));
+    await openTree(view.container);
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(3));
+
+    expect(treeItemByName(view.container, "Contracts").getAttribute("aria-selected")).toBe("true");
+    expect(treeItemByName(view.container, "All media").getAttribute("aria-selected")).toBe("false");
+
+    view.unmount();
+  });
+
   it("composes the toolbar filters with the tree branch selection in both directions", async () => {
     const tree = [categoryNode(10, "Invoices"), categoryNode(20, "Contracts")];
     apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
