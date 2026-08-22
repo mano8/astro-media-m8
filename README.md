@@ -184,6 +184,8 @@ declare the namespace in `components.json` for documentation / future HTTP hosti
 | `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `media-storage-chart`, `@mano8/astro-ui-m8/data-table`, `@mano8/astro-ui-m8/state-empty`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-loading`, `@mano8/astro-ui-m8/state-unauthorized` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
 | `media-maintenance-panel` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-unauthorized` | `lucide-react` | **yes** (`useMediaAdmin`) |
 | `admin-media-dashboard` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `@mano8/astro-ui-m8/state-unauthorized`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
+| `media-category-tree` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-category-tree.json` | `@mano8/astro-ui-m8/tree-view`, `@mano8/astro-ui-m8/state-empty`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-loading` | — | **yes** (`useCategoryTree`) |
+| `media-library-tree` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-library-tree.json` | `badge`, `button`, `@mano8/astro-ui-m8/data-table`, `@mano8/astro-ui-m8/state-error`, `media-category-tree` | `@tanstack/react-table` | **yes** (`useMediaObjects`) |
 
 `media-dashboard-overview` is the admin **landing** view (storage stat cards + a
 per-category storage chart + a subscriptions table built on the canonical
@@ -197,6 +199,17 @@ first) inside the package's `MediaProvider` + `RequireSuperuser`; drop the two p
 into your own shell instead if you already own the media chrome (as fa-ui-m8 does).
 Each reads its headless logic straight from `useMediaAdmin` and takes its strings via
 `labels`.
+
+`media-category-tree` is a shadcn skin over `astro-ui-m8`'s generic `tree-view` block
+for the nested user category tree: "All media" and "Uncategorized" pseudo-nodes always
+sit above the mapped category nodes, backed live by `useCategoryTree`, with the
+canonical `astro-ui-m8` loading/empty/error states. `media-library-tree` pairs that pane
+with the canonical `astro-ui-m8` `data-table` (right pane) scoped to the selected branch
+via `useMediaObjects`; because that hook is cursor-paginated rather than page-numbered,
+the table is pinned to the single loaded page and "Load more" is wired to the table's
+add-button slot instead of forking a second results table. Both compose rather than
+reimplement the shared `tree-view`/`data-table` blocks, per this package's registry
+convention.
 
 Files land under `src/components/fa-media/` (the items' `target`), import shadcn
 primitives via `@/components/ui/*`, and pull headless logic from the installed package.
