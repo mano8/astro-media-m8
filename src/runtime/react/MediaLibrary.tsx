@@ -740,8 +740,12 @@ function MediaCategoryTreePane({
   return (
     <aside className={treePaneClassName} aria-label="Media categories">
       <h3 id={headingId}>Categories</h3>
-      {error ? <p role="alert">Failed to load categories</p> : null}
-      {loading && tree.length === 0 ? <p>Loading...</p> : null}
+      {error ? (
+        <p role="alert" className="fa-media-tree-error">
+          Failed to load categories
+        </p>
+      ) : null}
+      {loading && tree.length === 0 ? <p className="fa-media-category-hint">Loading categories…</p> : null}
       {!loading && !error && tree.length === 0 ? (
         <p className="fa-media-category-hint">
           No user categories yet. Create one from the Categories panel to browse media by branch.

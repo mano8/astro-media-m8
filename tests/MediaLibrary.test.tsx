@@ -378,6 +378,52 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 
+  it("prompts to create a category when the tree is empty", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: [], count: 0 });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+
+    await waitFor(() => {
+      expect(view.container.querySelector(".fa-media-tree-pane .fa-media-category-hint")?.textContent).toContain(
+        "No user categories yet"
+      );
+    });
+    // the pseudo-rows still render so "All media"/"Uncategorized" stay reachable
+    expect(view.container.querySelector('li[role="treeitem"]')).not.toBeNull();
+
+    view.unmount();
+  });
+
+  it("surfaces a tree load failure without breaking the list pane", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockRejectedValue(new Error("boom"));
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+
+    await waitFor(() => {
+      expect(view.container.querySelector('.fa-media-tree-pane [role="alert"]')?.textContent).toBe(
+        "Failed to load categories"
+      );
+    });
+    // the list pane keeps rendering the caller's objects despite the tree failure
+    expect(view.container.querySelectorAll(".fa-media-tree-results tbody tr")).toHaveLength(1);
+
+    view.unmount();
+  });
+
   it("exposes the tree pane as a role=tree matching the shared tree-view a11y contract", async () => {
     const tree = [
       categoryNode(10, "Invoices", [categoryNode(11, "2025"), categoryNode(12, "2026")]),
