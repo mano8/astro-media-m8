@@ -44,7 +44,15 @@ export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects 
     order,
     limit,
     owner_user_id,
-    include_deleted
+    include_deleted,
+    // Branch filter over the user category tree. These three are memoized by the
+    // same explicit-name discipline as everything above: a param that is not
+    // destructured here, copied into `listParams` **and** listed in the
+    // dependency array below never changes the query key, so selecting a branch
+    // would silently keep serving the previous branch's page.
+    category_id,
+    include_descendants,
+    uncategorized
   } = params;
   const listParams = useMemo(
     () => listParamsWithoutCursor({
@@ -59,13 +67,18 @@ export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects 
       order,
       limit,
       owner_user_id,
-      include_deleted
+      include_deleted,
+      category_id,
+      include_descendants,
+      uncategorized
     }),
     [
       category,
+      category_id,
       created_from,
       created_to,
       include_deleted,
+      include_descendants,
       limit,
       mime_prefix,
       order,
@@ -73,6 +86,7 @@ export function useMediaObjects(params: ObjectListParams = {}): UseMediaObjects 
       q,
       sort_by,
       status,
+      uncategorized,
       visibility
     ]
   );

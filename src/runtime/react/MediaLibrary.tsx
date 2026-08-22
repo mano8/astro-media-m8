@@ -13,6 +13,19 @@ import type {
 
 type MediaLibraryView = "list" | "grid" | "masonry" | "tree";
 
+/**
+ * What the browse pane has selected. The two pseudo-nodes are part of the
+ * selection rather than a separate toggle because they are mutually exclusive
+ * with a branch: "all" clears `category_id`/`include_descendants`/
+ * `uncategorized`, "uncategorized" sets only `uncategorized`, and a category
+ * sets `category_id` + `include_descendants`. Modelling them as three
+ * independent booleans would let the UI reach states the API rejects.
+ */
+type CategoryBranchSelection =
+  | { kind: "all" }
+  | { kind: "uncategorized" }
+  | { kind: "category"; id: number };
+
 type PreviewLoading = {
   loading: "eager" | "lazy";
   fetchPriority: "high" | "low";
@@ -83,6 +96,34 @@ const selectedTreeNodeStyle: CSSProperties = {
 
 function isImage(object: MediaObjectPublic): boolean {
   return object.mime_type.toLowerCase().startsWith("image/");
+}
+
+/**
+ * The one place a selection becomes list params. Every key is written on every
+ * selection — `undefined` where it does not apply — so switching branches
+ * clears the previous branch's params instead of leaving a stale
+ * `category_id` next to a fresh `uncategorized`.
+ *
+ * A branch selection is always descendant-inclusive: the node badge shows
+ * `total_object_count`, so a branch that lists fewer objects than its own badge
+ * promises would read as a bug.
+ */
+function branchListParams(selection: CategoryBranchSelection): Pick<
+  ObjectListParams,
+  "category_id" | "include_descendants" | "uncategorized"
+> {
+  return {
+    category_id: selection.kind === "category" ? selection.id : undefined,
+    include_descendants: selection.kind === "category" ? true : undefined,
+    uncategorized: selection.kind === "uncategorized" ? true : undefined
+  };
+}
+
+/** Keep the pane in step with a caller-supplied `initial` branch filter. */
+function initialBranchSelection(params: ObjectListParams): CategoryBranchSelection {
+  if (params.category_id != null) return { kind: "category", id: params.category_id };
+  if (params.uncategorized) return { kind: "uncategorized" };
+  return { kind: "all" };
 }
 
 /**
@@ -312,15 +353,15 @@ function MediaObjectTable({
 function MediaCategoryBranch({
   node,
   depth,
-  selectedId,
+  selection,
   onSelect
 }: {
   node: CategoryNode;
   depth: number;
-  selectedId: number | null;
-  onSelect: (id: number) => void;
+  selection: CategoryBranchSelection;
+  onSelect: (selection: CategoryBranchSelection) => void;
 }) {
-  const isSelected = selectedId === node.id;
+  const isSelected = selection.kind === "category" && selection.id === node.id;
 
   return (
     <li className="fa-media-tree-node" aria-level={depth}>
@@ -329,7 +370,7 @@ function MediaCategoryBranch({
         className={treeNodeButtonClassName}
         style={isSelected ? selectedTreeNodeStyle : undefined}
         aria-current={isSelected ? "true" : undefined}
-        onClick={() => onSelect(node.id)}
+        onClick={() => onSelect({ kind: "category", id: node.id })}
       >
         <span className="fa-media-tree-name truncate">{node.name}</span>
         <span
@@ -346,12 +387,44 @@ function MediaCategoryBranch({
               key={child.id}
               node={child}
               depth={depth + 1}
-              selectedId={selectedId}
+              selection={selection}
               onSelect={onSelect}
             />
           ))}
         </ul>
       ) : null}
+    </li>
+  );
+}
+
+/**
+ * "All media" / "Uncategorized": the two rows in the pane that are not a
+ * server category. They are plain sibling treeitems at level 1 with no count
+ * badge — the server node counts are per-category, and inventing a total here
+ * would be a second, unverifiable source for a number the tree already owns.
+ */
+function MediaCategoryPseudoNode({
+  label,
+  modifier,
+  isSelected,
+  onSelect
+}: {
+  label: string;
+  modifier: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <li className={`fa-media-tree-node fa-media-tree-node--${modifier}`} aria-level={1}>
+      <button
+        type="button"
+        className={treeNodeButtonClassName}
+        style={isSelected ? selectedTreeNodeStyle : undefined}
+        aria-current={isSelected ? "true" : undefined}
+        onClick={onSelect}
+      >
+        <span className="fa-media-tree-name truncate">{label}</span>
+      </button>
     </li>
   );
 }
@@ -365,11 +438,11 @@ function MediaCategoryBranch({
  * the list/grid/masonry views must not pay for a fetch they never render.
  */
 function MediaCategoryTreePane({
-  selectedId,
+  selection,
   onSelect
 }: {
-  selectedId: number | null;
-  onSelect: (id: number) => void;
+  selection: CategoryBranchSelection;
+  onSelect: (selection: CategoryBranchSelection) => void;
 }) {
   const { tree, loading, error } = useCategoryTree();
 
@@ -383,19 +456,29 @@ function MediaCategoryTreePane({
           No user categories yet. Create one from the Categories panel to browse media by branch.
         </p>
       ) : null}
-      {tree.length > 0 ? (
-        <ul className="fa-media-tree-nodes">
-          {tree.map((node) => (
-            <MediaCategoryBranch
-              key={node.id}
-              node={node}
-              depth={1}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </ul>
-      ) : null}
+      <ul className="fa-media-tree-nodes">
+        <MediaCategoryPseudoNode
+          label="All media"
+          modifier="all"
+          isSelected={selection.kind === "all"}
+          onSelect={() => onSelect({ kind: "all" })}
+        />
+        <MediaCategoryPseudoNode
+          label="Uncategorized"
+          modifier="uncategorized"
+          isSelected={selection.kind === "uncategorized"}
+          onSelect={() => onSelect({ kind: "uncategorized" })}
+        />
+        {tree.map((node) => (
+          <MediaCategoryBranch
+            key={node.id}
+            node={node}
+            depth={1}
+            selection={selection}
+            onSelect={onSelect}
+          />
+        ))}
+      </ul>
     </aside>
   );
 }
@@ -409,14 +492,25 @@ export function MediaLibrary({
 }) {
   const [query, setQuery] = useState<ObjectListParams>(initial);
   const [view, setView] = useState<MediaLibraryView>("list");
-  // Which branch the tree pane has selected. Turning this into
-  // `query.category_id` / `include_descendants` (and the "All"/"Uncategorized"
-  // pseudo-nodes that clear or invert it) is the next `U7` checkbox; this one
-  // owns the layout and the selection itself.
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  // Which branch the tree pane has selected. It is kept beside `query` rather
+  // than derived from it because "all" and an absent branch filter are the same
+  // params but not the same pane state.
+  const [branchSelection, setBranchSelection] = useState<CategoryBranchSelection>(() =>
+    initialBranchSelection(initial)
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const { items, count, loading, error, hasMore, refresh, loadMore } = useMediaObjects(query);
+
+  /**
+   * Patches the branch params onto `query` rather than replacing it, so the
+   * toolbar's search / enum category / status filters stay live and compose
+   * with the selected branch.
+   */
+  function handleBranchSelect(selection: CategoryBranchSelection) {
+    setBranchSelection(selection);
+    setQuery((prev) => ({ ...prev, ...branchListParams(selection) }));
+  }
 
   async function handleDelete(object: MediaObjectPublic) {
     setActionError(null);
@@ -495,7 +589,7 @@ export function MediaLibrary({
       {actionError ? <p role="alert">{actionError}</p> : null}
       {view === "tree" ? (
         <div className={treeLayoutClassName}>
-          <MediaCategoryTreePane selectedId={selectedCategoryId} onSelect={setSelectedCategoryId} />
+          <MediaCategoryTreePane selection={branchSelection} onSelect={handleBranchSelect} />
           <div className={treeResultsClassName}>
             <MediaObjectTable
               items={items}
