@@ -53,7 +53,8 @@
         "button",
         "alert-dialog",
         "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
-        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json"
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/toast-notification.json"
       ],
       "files": [
         {
