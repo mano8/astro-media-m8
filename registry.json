@@ -123,6 +123,25 @@
           "target": "components/fa-media/media-library-tree.tsx"
         }
       ]
+    },
+    {
+      "name": "media-transfer-dialog",
+      "type": "registry:component",
+      "title": "Media Import / Export Dialog",
+      "description": "shadcn dialog skin for the media transfer hooks. It composes astro-ui-m8's dialog-form and data-table recipes, and forwards active filters such as a selected category branch. Requires @mano8/astro-media-m8 installed.",
+      "dependencies": ["@tanstack/react-table", "react-hook-form", "zod", "@hookform/resolvers"],
+      "registryDependencies": [
+        "button",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/dialog-form.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/data-table.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/library/media-transfer-dialog.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-transfer-dialog.tsx"
+        }
+      ]
     }
   ]
 }

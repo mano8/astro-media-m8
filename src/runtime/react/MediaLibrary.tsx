@@ -162,6 +162,18 @@ function branchListParams(selection: CategoryBranchSelection): Pick<
   };
 }
 
+/** A concise, visible description of the branch whose filters will be exported. */
+function exportBranchLabel(selection: CategoryBranchSelection): string {
+  switch (selection.kind) {
+    case "all":
+      return "All media";
+    case "uncategorized":
+      return "Uncategorized media";
+    case "category":
+      return `Selected branch (category ${selection.id})`;
+  }
+}
+
 /** Keep the pane in step with a caller-supplied `initial` branch filter. */
 function initialBranchSelection(params: ObjectListParams): CategoryBranchSelection {
   if (params.category_id != null) return { kind: "category", id: params.category_id };
@@ -814,7 +826,13 @@ function ImportResultRow({ result }: { result: ImportObjectResult }) {
  * (`ObjectListParams`) so exporting the selected tree branch (`U10`'s branch
  * bullet) falls out of passing the library's own `query` through unchanged.
  */
-function MediaTransferPanel({ filters }: { filters: ObjectListParams }) {
+function MediaTransferPanel({
+  filters,
+  exportScopeLabel
+}: {
+  filters: ObjectListParams;
+  exportScopeLabel?: string;
+}) {
   const transfer = useMediaTransfer();
   const [exportFormat, setExportFormat] = useState<ExportFormat>("manifest");
   const [importFormat, setImportFormat] = useState<ImportFormat>("manifest");
@@ -854,6 +872,7 @@ function MediaTransferPanel({ filters }: { filters: ObjectListParams }) {
     <div className={transferPanelClassName} role="region" aria-label="Import and export media">
       <section className={transferSectionClassName} aria-label="Export">
         <h3>Export</h3>
+        {exportScopeLabel ? <p className="fa-media-transfer-hint">Export scope: {exportScopeLabel}</p> : null}
         <fieldset>
           <legend>Format</legend>
           {EXPORT_FORMAT_OPTIONS.map((option) => (
@@ -1093,7 +1112,7 @@ export function MediaLibrary({
       </header>
       {transferOpen ? (
         <div id="fa-media-transfer-panel">
-          <MediaTransferPanel filters={query} />
+          <MediaTransferPanel filters={query} exportScopeLabel={view === "tree" ? exportBranchLabel(branchSelection) : undefined} />
         </div>
       ) : null}
       {error ? <p role="alert">Failed to load media</p> : null}

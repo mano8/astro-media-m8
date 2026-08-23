@@ -774,6 +774,43 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 
+  it("exports the selected tree branch with its category filter", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: [categoryNode(10, "Invoices")], count: 1 });
+    apiMocks.startExport.mockResolvedValue({ category_tree: [], objects: [] });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+    await openTree(view.container);
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(3));
+
+    click(rowByName(view.container, "Invoices"));
+    await waitFor(() => expect(lastListCall()).toMatchObject({ category_id: 10, include_descendants: true }));
+
+    const toggle = [...view.container.querySelectorAll("button")].find((button) => button.textContent === "Import / Export");
+    click(toggle);
+    await waitFor(() => {
+      expect(view.container.textContent).toContain("Export scope: Selected branch (category 10)");
+    });
+
+    const startExportButton = [...view.container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Start export"
+    );
+    click(startExportButton);
+    await waitFor(() => {
+      expect(apiMocks.startExport).toHaveBeenCalledWith(
+        "manifest",
+        expect.objectContaining({ category_id: 10, include_descendants: true })
+      );
+    });
+
+    view.unmount();
+  });
+
   it("Import: starts an import from a picked file and renders the per-row report", async () => {
     apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
     apiMocks.startImport.mockResolvedValue({
