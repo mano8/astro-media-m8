@@ -24,14 +24,14 @@ and composes into the [mano8/fa-ui-m8](https://github.com/mano8/fa-ui-m8) host a
 - [`astro-auth-m8`](https://github.com/mano8/astro-auth-m8) — required auth peer; issues the fa-auth-m8 tokens this plugin's adapter consumes.
 - [`fa-ui-m8`](https://github.com/mano8/fa-ui-m8) — the Astro/Starlight host app this plugin installs into.
 
-Pinned to `media-service-m8@1.0` (supported service-version range
-`>=1.0.0 <2.0.0`; see `mediaServiceM8` in `package.json`).
+Pinned to `media-service-m8@1.1` (supported service-version range
+`>=2.0.0 <3.0.0`; see `mediaServiceM8` in `package.json`).
 
 ## Backend contract
 
-This package targets the `media-service-m8@1.0` API contract and was tested
-against `media-service-m8` service version `1.0.0`. Supported backend service
-versions are `>=1.0.0 <2.0.0`.
+This package targets the additive `media-service-m8@1.1` API contract and was
+tested against `media-service-m8` service version `2.0.0`. Supported backend
+service versions are `>=2.0.0 <3.0.0`.
 
 Compatibility helpers are exported from `@mano8/astro-media-m8/compatibility`.
 `media-service-m8` (>= 0.0.10) exposes a public `GET {API_PREFIX}/meta` route
