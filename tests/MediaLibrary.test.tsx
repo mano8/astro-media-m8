@@ -14,7 +14,10 @@ const apiMocks = vi.hoisted(() => ({
   getCategoryTree: vi.fn(),
   createCategory: vi.fn(),
   updateCategory: vi.fn(),
-  deleteCategory: vi.fn()
+  deleteCategory: vi.fn(),
+  startExport: vi.fn(),
+  getExportJob: vi.fn(),
+  startImport: vi.fn()
 }));
 
 vi.mock("../src/runtime/api/objects.js", () => ({
@@ -37,6 +40,16 @@ vi.mock("../src/runtime/api/categories.js", () => ({
   createCategory: apiMocks.createCategory,
   updateCategory: apiMocks.updateCategory,
   deleteCategory: apiMocks.deleteCategory
+}));
+
+// The Import/Export control (`U10`) calls `useMediaTransfer()`, which reaches
+// `api/transfer.js` — mocked for the same reason as `categories.js` above:
+// its real module imports `client.js`, which re-exports the `api/index.js`
+// barrel this file does not stub every branch of.
+vi.mock("../src/runtime/api/transfer.js", () => ({
+  startExport: apiMocks.startExport,
+  getExportJob: apiMocks.getExportJob,
+  startImport: apiMocks.startImport
 }));
 
 import { MediaLibrary } from "../src/runtime/react/MediaLibrary.js";
@@ -695,6 +708,152 @@ describe("MediaLibrary", () => {
     await waitFor(() => expect(lastListCall()).toMatchObject({ uncategorized: true }));
     expect(lastListCall().category_id).toBeUndefined();
     expect(lastListCall().include_descendants).toBeUndefined();
+
+    view.unmount();
+  });
+
+  it("Import/Export toggles a panel, starts an export and offers a manifest download", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.startExport.mockResolvedValue({
+      category_tree: [],
+      objects: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          filename: "a.png",
+          category: "asset",
+          category_paths: [],
+          visibility: "private",
+          size_bytes: 10,
+          sha256: null,
+          mime_type: "image/png",
+          status: "ready",
+          scan_status: "clean",
+          created_at: NOW,
+          updated_at: NOW
+        }
+      ]
+    });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary initial={{ q: "invoice" }} />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+
+    // closed by default
+    expect(view.container.querySelector('[aria-label="Import and export media"]')).toBeNull();
+
+    const toggle = [...view.container.querySelectorAll("button")].find((b) => b.textContent === "Import / Export");
+    click(toggle);
+    await waitFor(() => {
+      expect(view.container.querySelector('[aria-label="Import and export media"]')).not.toBeNull();
+    });
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+
+    const startExportButton = [...view.container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Start export"
+    );
+    click(startExportButton);
+    await waitFor(() => {
+      expect(apiMocks.startExport).toHaveBeenCalledWith("manifest", expect.objectContaining({ q: "invoice" }));
+    });
+
+    await waitFor(() => {
+      expect(view.container.textContent).toContain("Download manifest (1 objects)");
+    });
+
+    // closing and reopening the panel does not re-fetch the list
+    const before = apiMocks.listObjects.mock.calls.length;
+    click(toggle);
+    await waitFor(() => {
+      expect(view.container.querySelector('[aria-label="Import and export media"]')).toBeNull();
+    });
+    expect(apiMocks.listObjects.mock.calls.length).toBe(before);
+
+    view.unmount();
+  });
+
+  it("Import: starts an import from a picked file and renders the per-row report", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+    apiMocks.startImport.mockResolvedValue({
+      format: "manifest",
+      categories_created: 1,
+      categories_reused: 0,
+      created: 0,
+      linked: 1,
+      skipped: 0,
+      failed: 1,
+      objects: [
+        {
+          source_id: "33333333-3333-4333-8333-333333333333",
+          filename: "linked.png",
+          status: "linked",
+          reason: null,
+          message: null,
+          media_object_id: "33333333-3333-4333-8333-333333333333",
+          category_paths: ["docs"],
+          scan_queued: false
+        },
+        {
+          source_id: "44444444-4444-4444-8444-444444444444",
+          filename: "bad.png",
+          status: "failed",
+          reason: "mime_mismatch",
+          message: null,
+          media_object_id: null,
+          category_paths: [],
+          scan_queued: false
+        }
+      ]
+    });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+
+    const toggle = [...view.container.querySelectorAll("button")].find((b) => b.textContent === "Import / Export");
+    click(toggle);
+    await waitFor(() => {
+      expect(view.container.querySelector('[aria-label="Import and export media"]')).not.toBeNull();
+    });
+
+    const startImportButton = () =>
+      [...view.container.querySelectorAll("button")].find((b) => b.textContent === "Start import") as HTMLButtonElement;
+    expect(startImportButton().disabled).toBe(true);
+
+    const fileInput = view.container.querySelector<HTMLInputElement>(
+      '[aria-label="Import"] input[type="file"]'
+    );
+    const file = new File(["{}"], "manifest.json", { type: "application/json" });
+    await act(async () => {
+      Object.defineProperty(fileInput, "files", { value: [file], configurable: true });
+      fileInput?.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(startImportButton().disabled).toBe(false);
+
+    click(startImportButton());
+    await waitFor(() => {
+      expect(apiMocks.startImport).toHaveBeenCalledWith("manifest", file);
+    });
+
+    await waitFor(() => {
+      expect(view.container.textContent).toContain("0 created, 1 linked, 0 skipped, 1 failed");
+    });
+    const rows = view.container.querySelectorAll(".fa-media-transfer-table tbody tr");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toContain("linked.png");
+    expect(rows[0]?.textContent).toContain("linked");
+    expect(rows[1]?.textContent).toContain("bad.png");
+    expect(rows[1]?.textContent).toContain("This file type is not allowed for the selected category.");
+
+    // re-fetches the list and category tree after a successful import
+    await waitFor(() => {
+      expect(apiMocks.listObjects.mock.calls.length).toBeGreaterThan(1);
+    });
 
     view.unmount();
   });

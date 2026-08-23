@@ -120,6 +120,25 @@ describe("errors", () => {
     expect(friendlyReasonMessage({ code: "scan_not_clean", scan_status: "quarantined" }, "fallback")).toBe(
       "This file was rejected because it failed the virus scan."
     );
+    // U10 import-only reasons (`ImportRowReason`), reusing the same map.
+    expect(friendlyReasonMessage({ reason: "missing_bytes" }, "fallback")).toBe(
+      "This item has no bytes to import (manifest-only, no local copy)."
+    );
+    expect(friendlyReasonMessage({ reason: "already_exists" }, "fallback")).toBe(
+      "This item already exists in your library."
+    );
+    expect(friendlyReasonMessage({ reason: "id_conflict" }, "fallback")).toBe(
+      "This item conflicts with an existing record you do not own."
+    );
+    expect(friendlyReasonMessage({ reason: "unsupported_mime" }, "fallback")).toBe(
+      "This file type is not supported for import."
+    );
+    expect(friendlyReasonMessage({ reason: "invalid_metadata" }, "fallback")).toBe(
+      "This item's metadata could not be read."
+    );
+    expect(friendlyReasonMessage({ reason: "storage_error" }, "fallback")).toBe(
+      "A storage error prevented this file from being imported."
+    );
     // unknown reason falls back to the detail's own message, then to the generic fallback
     expect(friendlyReasonMessage({ reason: "something_new", message: "server said so" }, "fallback")).toBe(
       "server said so"
@@ -246,6 +265,18 @@ describe("request", () => {
     const [, init] = fetchMock.mock.calls[0];
     expect((init.headers as Headers).get("Content-Type")).toBe("application/json");
     expect(init.body).toBe(JSON.stringify({ a: 1 }));
+  });
+
+  it("sends a FormData body as-is, without a manual Content-Type (U10 import)", async () => {
+    fetchMock.mockResolvedValueOnce(makeResponse(200, { ok: true }));
+    const form = new FormData();
+    form.set("format", "manifest");
+    await request({ method: "POST", path: "/import", body: form, schema: okSchema });
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.body).toBe(form);
+    // No explicit Content-Type: fetch must derive the multipart boundary
+    // itself, which it cannot do if this were set ahead of time.
+    expect((init.headers as Headers).has("Content-Type")).toBe(false);
   });
 
   it("returns undefined for 204 and when no schema is given", async () => {

@@ -64,9 +64,12 @@ export function normalizeFastApiError(payload: unknown): unknown {
 
 /**
  * Friendly copy for the stable machine tokens media-service-m8 raises on the
- * upload-reject 422 (`UploadRejectDetail.reason`) and the download-guard 409
- * (`DownloadNotAvailableDetail.code`). Keyed by whichever of `reason`/`code`
- * the detail carries, so both shapes resolve through one map.
+ * upload-reject 422 (`UploadRejectDetail.reason`), the download-guard 409
+ * (`DownloadNotAvailableDetail.code`), and a per-row import result
+ * (`ImportObjectResult.reason`, `U9`/`U10`) — the first five import reasons
+ * are `U1`'s own upload-reject tokens, reused verbatim, so both surfaces
+ * resolve through this one map. Keyed by whichever of `reason`/`code` the
+ * detail carries.
  */
 export const UPLOAD_REJECT_REASON_MESSAGES: ReadonlyMap<string, string> = new Map([
   ["size_exceeded", "This file is larger than the allowed size limit."],
@@ -74,7 +77,14 @@ export const UPLOAD_REJECT_REASON_MESSAGES: ReadonlyMap<string, string> = new Ma
   ["sha256_mismatch", "The uploaded file did not match its expected checksum."],
   ["quota_bytes_exceeded", "You have reached your storage quota."],
   ["quota_objects_exceeded", "You have reached the maximum number of files allowed."],
-  ["scan_not_clean", "This file was rejected because it failed the virus scan."]
+  ["scan_not_clean", "This file was rejected because it failed the virus scan."],
+  // Import-only outcomes (`ImportRowReason`).
+  ["missing_bytes", "This item has no bytes to import (manifest-only, no local copy)."],
+  ["already_exists", "This item already exists in your library."],
+  ["id_conflict", "This item conflicts with an existing record you do not own."],
+  ["unsupported_mime", "This file type is not supported for import."],
+  ["invalid_metadata", "This item's metadata could not be read."],
+  ["storage_error", "A storage error prevented this file from being imported."]
 ]);
 
 /**

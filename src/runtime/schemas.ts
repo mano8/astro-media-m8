@@ -639,3 +639,122 @@ export const ResponseModelOrMessageSchema = z.union([
   ResponseMessageSchema
 ]);
 export type ResponseModelOrMessage = z.infer<typeof ResponseModelOrMessageSchema>;
+
+// ---------------------------------------------------------------------------
+// Export / import (`U9`/`U10`) — mirrors media_service/schemas/transfer.py.
+// Both directions share one `manifest`/`archive` format vocabulary but use
+// separate object shapes: an export projects rows this service already owns,
+// while an import parses an attacker-controlled file, so the fields an
+// import must never trust (`status`, `scan_status`, timestamps, foreign row
+// ids) are simply absent from the inbound `Import*` shapes below.
+// ---------------------------------------------------------------------------
+
+export const ExportFormatSchema = z.enum(["manifest", "archive"]);
+export type ExportFormat = z.infer<typeof ExportFormatSchema>;
+
+export const ManifestObjectEntrySchema = z
+  .object({
+    id: uuid,
+    filename: z.string().nullable().default(null),
+    category: MediaCategorySchema,
+    category_paths: z.array(z.string()).default([]),
+    visibility: MediaVisibilitySchema,
+    size_bytes: z.number().int().nonnegative(),
+    sha256: z.string().length(64).nullable().default(null),
+    mime_type: z.string(),
+    status: MediaObjectStatusSchema,
+    scan_status: ScanStatusSchema,
+    created_at: isoDate,
+    updated_at: isoDate
+  })
+  .strict();
+export type ManifestObjectEntry = z.infer<typeof ManifestObjectEntrySchema>;
+
+// The streamed body of a `manifest` export (`GET`/`POST .../export`), parsed
+// whole client-side — the server streams it incrementally, but nothing on
+// this side of the wire needs to.
+export const ExportManifestSchema = z
+  .object({
+    category_tree: z.array(CategoryNodeSchema),
+    objects: z.array(ManifestObjectEntrySchema)
+  })
+  .strict();
+export type ExportManifest = z.infer<typeof ExportManifestSchema>;
+
+export const ExportJobStatusSchema = z.enum(["queued", "processing", "completed", "failed"]);
+export type ExportJobStatus = z.infer<typeof ExportJobStatusSchema>;
+
+export const ExportJobPublicSchema = z
+  .object({
+    id: uuid,
+    status: ExportJobStatusSchema,
+    object_count: z.number().int().nonnegative(),
+    total_size_bytes: z.number().int().nonnegative(),
+    size_bytes: z.number().int().nonnegative().nullable().default(null),
+    expires_at: nullableIsoDate.default(null),
+    error: z.string().nullable().default(null),
+    created_at: isoDate,
+    updated_at: isoDate,
+    // Populated only while the job is `completed` and its archive has not
+    // lapsed — a short-lived presigned GET, minted per status read.
+    download_url: z.string().nullable().default(null)
+  })
+  .strict();
+export type ExportJobPublic = z.infer<typeof ExportJobPublicSchema>;
+
+/** Body of `POST /export`. `filters` reuses `ObjectListParams` (`D-filter`). */
+export type ExportRequest = {
+  format: ExportFormat;
+  filters?: ObjectListParams;
+};
+
+export const ImportFormatSchema = ExportFormatSchema;
+export type ImportFormat = z.infer<typeof ImportFormatSchema>;
+
+export const ImportRowStatusSchema = z.enum(["created", "linked", "skipped", "failed"]);
+export type ImportRowStatus = z.infer<typeof ImportRowStatusSchema>;
+
+// The first five are `U1`'s upload-reject vocabulary, reused verbatim; the
+// rest name outcomes only an import can have.
+export const ImportRowReasonSchema = z.enum([
+  "size_exceeded",
+  "mime_mismatch",
+  "sha256_mismatch",
+  "quota_bytes_exceeded",
+  "quota_objects_exceeded",
+  "missing_bytes",
+  "already_exists",
+  "id_conflict",
+  "unsupported_mime",
+  "invalid_metadata",
+  "storage_error"
+]);
+export type ImportRowReason = z.infer<typeof ImportRowReasonSchema>;
+
+export const ImportObjectResultSchema = z
+  .object({
+    source_id: uuid,
+    filename: z.string().nullable().default(null),
+    status: ImportRowStatusSchema,
+    reason: ImportRowReasonSchema.nullable().default(null),
+    message: z.string().nullable().default(null),
+    media_object_id: uuid.nullable().default(null),
+    category_paths: z.array(z.string()).default([]),
+    scan_queued: z.boolean().default(false)
+  })
+  .strict();
+export type ImportObjectResult = z.infer<typeof ImportObjectResultSchema>;
+
+export const ImportReportSchema = z
+  .object({
+    format: ImportFormatSchema,
+    categories_created: z.number().int().nonnegative().default(0),
+    categories_reused: z.number().int().nonnegative().default(0),
+    created: z.number().int().nonnegative().default(0),
+    linked: z.number().int().nonnegative().default(0),
+    skipped: z.number().int().nonnegative().default(0),
+    failed: z.number().int().nonnegative().default(0),
+    objects: z.array(ImportObjectResultSchema).default([])
+  })
+  .strict();
+export type ImportReport = z.infer<typeof ImportReportSchema>;

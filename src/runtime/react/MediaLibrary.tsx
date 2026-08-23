@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
   type FocusEvent as ReactFocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode
@@ -13,8 +14,13 @@ import { deleteObject } from "../api/objects.js";
 import { useDownloadUrl } from "../hooks/useDownloadUrl.js";
 import { useCategoryTree } from "../hooks/useMediaCategories.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
+import { useMediaTransfer } from "../hooks/useMediaTransfer.js";
+import { friendlyReasonMessage } from "../errors.js";
 import type {
   CategoryNode,
+  ExportFormat,
+  ImportFormat,
+  ImportObjectResult,
   MediaCategory,
   MediaObjectPublic,
   MediaObjectStatus,
@@ -114,6 +120,22 @@ const selectedTreeNodeStyle: CSSProperties = {
   color: "var(--fa-media-tree-selected-fg, var(--foreground, HighlightText))",
   fontWeight: 600
 };
+const buttonClassName =
+  "fa-media-button inline-flex min-h-8 items-center rounded-lg border border-input px-3 py-1 text-sm font-medium transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50";
+const labelInlineClassName = "fa-media-label-inline flex items-center gap-2 text-sm";
+const transferPanelClassName =
+  "fa-media-transfer-panel grid gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground md:grid-cols-2";
+const transferSectionClassName = "fa-media-transfer-section grid gap-2 content-start";
+const transferTableWrapClassName = "fa-media-transfer-table-wrap max-h-64 overflow-y-auto rounded-md border border-border";
+const transferTableClassName = "fa-media-transfer-table w-full border-collapse text-xs";
+const EXPORT_FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; hint: string }> = [
+  { value: "manifest", label: "Manifest", hint: "Metadata only — filenames, categories, no bytes." },
+  { value: "archive", label: "Archive", hint: "Full zip with bytes; assembled asynchronously." }
+];
+const IMPORT_FORMAT_OPTIONS: ReadonlyArray<{ value: ImportFormat; label: string }> = [
+  { value: "manifest", label: "Manifest" },
+  { value: "archive", label: "Archive" }
+];
 
 function isImage(object: MediaObjectPublic): boolean {
   return object.mime_type.toLowerCase().startsWith("image/");
@@ -771,6 +793,191 @@ function MediaCategoryTreePane({
   );
 }
 
+/** One row of the per-import result table. */
+function ImportResultRow({ result }: { result: ImportObjectResult }) {
+  const message = result.reason ? friendlyReasonMessage({ reason: result.reason }, result.message ?? result.reason) : result.message;
+  return (
+    <tr>
+      <td>{result.filename ?? result.source_id}</td>
+      <td>{result.status}</td>
+      <td>{message ?? "—"}</td>
+    </tr>
+  );
+}
+
+/**
+ * Import/export control (`U10`). A single toggled panel rather than a modal
+ * dialog — this package hand-rolls Tailwind token classes in `src/runtime`
+ * rather than importing `astro-ui-m8` components here (`D11`; the
+ * `dialog-form`/`data-table` composition is a separate registry skin, not
+ * this runtime component). Export reuses the caller's live `filters`
+ * (`ObjectListParams`) so exporting the selected tree branch (`U10`'s branch
+ * bullet) falls out of passing the library's own `query` through unchanged.
+ */
+function MediaTransferPanel({ filters }: { filters: ObjectListParams }) {
+  const transfer = useMediaTransfer();
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("manifest");
+  const [importFormat, setImportFormat] = useState<ImportFormat>("manifest");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  async function handleStartExport() {
+    transfer.resetExport();
+    try {
+      await transfer.startExport(exportFormat, filters);
+    } catch {
+      // surfaced via `transfer.exportError`
+    }
+  }
+
+  async function handleStartImport() {
+    if (!importFile) return;
+    try {
+      await transfer.startImport(importFormat, importFile);
+    } catch {
+      // surfaced via `transfer.importError`
+    } finally {
+      setImportFile(null);
+    }
+  }
+
+  function onDrop(event: ReactDragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) setImportFile(file);
+  }
+
+  const report = transfer.importReport;
+
+  return (
+    <div className={transferPanelClassName} role="region" aria-label="Import and export media">
+      <section className={transferSectionClassName} aria-label="Export">
+        <h3>Export</h3>
+        <fieldset>
+          <legend>Format</legend>
+          {EXPORT_FORMAT_OPTIONS.map((option) => (
+            <label key={option.value} className={labelInlineClassName}>
+              <input
+                type="radio"
+                name="fa-media-export-format"
+                value={option.value}
+                checked={exportFormat === option.value}
+                onChange={() => setExportFormat(option.value)}
+              />
+              {option.label}
+              <span className="fa-media-transfer-hint">{option.hint}</span>
+            </label>
+          ))}
+        </fieldset>
+        <button
+          type="button"
+          className={buttonClassName}
+          disabled={transfer.exportPending}
+          onClick={() => void handleStartExport()}
+        >
+          {transfer.exportPending ? "Exporting…" : "Start export"}
+        </button>
+        {transfer.exportError ? (
+          <p role="alert">
+            {transfer.exportError instanceof Error ? transfer.exportError.message : "Export failed"}
+          </p>
+        ) : null}
+        {transfer.exportFormat === "manifest" && transfer.manifest ? (
+          <button type="button" className={buttonClassName} onClick={() => transfer.downloadManifest()}>
+            Download manifest ({transfer.manifest.objects.length} objects)
+          </button>
+        ) : null}
+        {transfer.exportFormat === "archive" && transfer.exportJob ? (
+          <p role="status">
+            {transfer.exportJob.status === "completed" && transfer.exportJob.download_url ? (
+              <a className={actionLinkClassName} href={transfer.exportJob.download_url} download>
+                Download archive ({transfer.exportJob.object_count} objects)
+              </a>
+            ) : transfer.exportJob.status === "failed" ? (
+              `Export failed${transfer.exportJob.error ? `: ${transfer.exportJob.error}` : "."}`
+            ) : (
+              `Export ${transfer.exportJob.status}…`
+            )}
+          </p>
+        ) : null}
+      </section>
+      <section className={transferSectionClassName} aria-label="Import">
+        <h3>Import</h3>
+        <fieldset>
+          <legend>Format</legend>
+          {IMPORT_FORMAT_OPTIONS.map((option) => (
+            <label key={option.value} className={labelInlineClassName}>
+              <input
+                type="radio"
+                name="fa-media-import-format"
+                value={option.value}
+                checked={importFormat === option.value}
+                onChange={() => setImportFormat(option.value)}
+              />
+              {option.label}
+            </label>
+          ))}
+        </fieldset>
+        <div
+          className={dragActive ? `${treePaneClassName} fa-media-transfer-dropzone--active` : treePaneClassName}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={onDrop}
+        >
+          <input
+            className={inputClassName}
+            type="file"
+            accept={importFormat === "archive" ? ".zip" : ".json"}
+            onChange={(event) => setImportFile(event.currentTarget.files?.[0] ?? null)}
+          />
+          {importFile ? <p>{importFile.name}</p> : <p>Drop a file here, or choose one above.</p>}
+        </div>
+        <button
+          type="button"
+          className={buttonClassName}
+          disabled={!importFile || transfer.importPending}
+          onClick={() => void handleStartImport()}
+        >
+          {transfer.importPending ? "Importing…" : "Start import"}
+        </button>
+        {transfer.importError ? (
+          <p role="alert">
+            {transfer.importError instanceof Error ? transfer.importError.message : "Import failed"}
+          </p>
+        ) : null}
+        {report ? (
+          <div>
+            <p role="status">
+              {report.created} created, {report.linked} linked, {report.skipped} skipped, {report.failed} failed
+              {report.categories_created ? `; ${report.categories_created} categories created` : ""}
+            </p>
+            <div className={transferTableWrapClassName}>
+              <table className={transferTableClassName}>
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.objects.map((result) => (
+                    <ImportResultRow key={result.source_id} result={result} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
 export function MediaLibrary({
   objectHref,
   initial = {}
@@ -788,6 +995,7 @@ export function MediaLibrary({
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
   const { items, count, loading, error, hasMore, refresh, loadMore } = useMediaObjects(query);
 
   /**
@@ -832,6 +1040,16 @@ export function MediaLibrary({
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            className={buttonClassName}
+            aria-pressed={transferOpen}
+            aria-expanded={transferOpen}
+            aria-controls="fa-media-transfer-panel"
+            onClick={() => setTransferOpen((open) => !open)}
+          >
+            Import / Export
+          </button>
         </div>
         <div className={filterRowClassName}>
           <input
@@ -873,6 +1091,11 @@ export function MediaLibrary({
           </select>
         </div>
       </header>
+      {transferOpen ? (
+        <div id="fa-media-transfer-panel">
+          <MediaTransferPanel filters={query} />
+        </div>
+      ) : null}
       {error ? <p role="alert">Failed to load media</p> : null}
       {actionError ? <p role="alert">{actionError}</p> : null}
       {view === "tree" ? (

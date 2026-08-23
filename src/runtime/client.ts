@@ -74,7 +74,12 @@ export async function request<T>(options: MediaRequestOptions<T>): Promise<T> {
   }
 
   let body: BodyInit | undefined;
-  if (options.body !== undefined) {
+  if (options.body instanceof FormData) {
+    // Never set Content-Type ourselves — fetch derives the multipart
+    // boundary from the FormData body, and a manually-set header here would
+    // ship without one and break parsing server-side.
+    body = options.body;
+  } else if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(options.body);
   }
