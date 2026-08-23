@@ -11,11 +11,11 @@ describe("media-service-m8 compatibility", () => {
     const result = getMediaServiceM8Compatibility();
     expect(result.status).toBe("unknown");
     expect(result.expectedContract).toBe(MEDIA_SERVICE_M8_CONTRACT);
-    expect(MEDIA_SERVICE_M8_CONTRACT).toBe("media-service-m8@1.0");
+    expect(MEDIA_SERVICE_M8_CONTRACT).toBe("media-service-m8@1.1");
   });
 
   it("treats matching contract version or full id as compatible", () => {
-    expect(getMediaServiceM8Compatibility({ contract_version: "1.0" }).status).toBe("compatible");
+    expect(getMediaServiceM8Compatibility({ contract_version: "1.1" }).status).toBe("compatible");
     expect(getMediaServiceM8Compatibility({ media_service_m8_contract: MEDIA_SERVICE_M8_CONTRACT }).status).toBe(
       "compatible"
     );
@@ -46,11 +46,11 @@ describe("media-service-m8 compatibility", () => {
       service: "M8MediaService",
       version: "2.0.0",
       api_version: "v1",
-      contract: { name: "media-service-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
+      contract: { name: "media-service-m8", version: "1.1", range: ">=1.0.0 <2.0.0" }
     };
     const result = getMediaServiceM8Compatibility(meta);
     expect(result.status).toBe("compatible");
-    expect(result.contractVersion).toBe("1.0");
+    expect(result.contractVersion).toBe("1.1");
     expect(result.serviceVersion).toBe("2.0.0");
     expect(getMediaServiceM8Compatibility({ version: "2.0.0", contract: { version: "2.0" } }).status).toBe(
       "incompatible"
@@ -66,11 +66,11 @@ describe("media-service-m8 compatibility", () => {
       service: "M8MediaService",
       version: "2.0.0",
       api_version: "v1",
-      contract: { name: "media-service-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
+      contract: { name: "media-service-m8", version: "1.1", range: ">=1.0.0 <2.0.0" }
     };
     expect(getMediaServiceM8Compatibility(meta)).toMatchObject({
       status: "compatible",
-      contractVersion: "1.0",
+      contractVersion: "1.1",
       serviceVersion: "2.0.0"
     });
     expect(() => assertMediaServiceM8Compatibility(meta)).not.toThrow();
@@ -86,13 +86,13 @@ describe("media-service-m8 compatibility", () => {
     // Every M8 service serves this payload shape from the shared auth-sdk-m8
     // `mount_service_meta` helper, so a host pointed at the wrong sibling must be
     // named as a wrong contract, not blessed because the version digits happen to
-    // line up. fa-auth-m8 serves contract.version "2.0", but a sibling on "1.0"
-    // is the case the version comparison alone cannot catch.
+    // line up. A sibling on "1.1" is the case the version comparison alone
+    // cannot catch.
     const wrongService = {
       service: "M8FastApi",
       version: "1.0.0",
       api_version: "v1",
-      contract: { name: "reparto-docente-m8", version: "1.0", range: ">=1.0.0 <2.0.0" }
+      contract: { name: "reparto-docente-m8", version: "1.1", range: ">=1.0.0 <2.0.0" }
     };
     const result = getMediaServiceM8Compatibility(wrongService);
 
@@ -104,8 +104,8 @@ describe("media-service-m8 compatibility", () => {
 
   it("accepts a nested contract that names the expected issuer", () => {
     expect(
-      getMediaServiceM8Compatibility({ contract: { name: "media-service-m8", version: "1.0" } })
-    ).toMatchObject({ status: "compatible", contractVersion: "1.0" });
+      getMediaServiceM8Compatibility({ contract: { name: "media-service-m8", version: "1.1" } })
+    ).toMatchObject({ status: "compatible", contractVersion: "1.1" });
   });
 
   it("ignores blank metadata strings", () => {
@@ -115,14 +115,14 @@ describe("media-service-m8 compatibility", () => {
   it("prefers media-specific keys for both fields", () => {
     const result = getMediaServiceM8Compatibility({
       media_service_m8_version: "2.0.0",
-      media_contract: "1.0"
+      media_contract: "1.1"
     });
     expect(result.serviceVersion).toBe("2.0.0");
-    expect(result.contractVersion).toBe("1.0");
+    expect(result.contractVersion).toBe("1.1");
   });
 
   it("asserts compatibility and throws on incompatible/unknown", () => {
-    expect(assertMediaServiceM8Compatibility({ contract_version: "1.0" }).status).toBe("compatible");
+    expect(assertMediaServiceM8Compatibility({ contract_version: "1.1" }).status).toBe("compatible");
     expect(() => assertMediaServiceM8Compatibility({ contract_version: "2.0" })).toThrow();
     expect(() => assertMediaServiceM8Compatibility({ contract_version: "0.0" })).toThrow();
     expect(() => assertMediaServiceM8Compatibility({})).toThrow();

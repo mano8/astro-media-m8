@@ -33,7 +33,7 @@ host source edits outside documented registration points.
 
 - Communicate with `media-service-m8` over HTTP only; never import service code.
 - Publish `@mano8/astro-media-m8` and keep `mediaServiceM8` package metadata,
-  schemas, and compatibility checks aligned with the `media-service-m8@1.0`
+  schemas, and compatibility checks aligned with the `media-service-m8@1.1`
   contract (`>=1.0.0 <2.0.0`).
 - Model public backend responses only; never expose secret or session fields.
 - Export public modules only through explicit `package.json` subpaths.
