@@ -18,6 +18,7 @@
  *   token-only-css           scaffold styles resolve colour through tokens
  *   no-inline-style          skins and default UI style through classes
  *   route-collision          no two starter routes claim the same pattern
+ *   island-error-boundary    every island a route mounts sits under a boundary
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -37,6 +38,12 @@ const CONFIG = {
   /** Compiled route builder, read after `npm run build`. */
   routesModule: "dist/src/runtime/routes.js",
   routesBuilder: "buildMediaRoutes",
+  /** Starter routes, scanned for the components they mount as islands. */
+  routesDir: "src/routes",
+  /** Trees searched for those components' definitions. */
+  componentDirs: ["src/runtime/react"],
+  /** The boundary every island root must resolve to (`A-C3`). */
+  errorBoundary: "MediaErrorBoundary",
 };
 
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".astro"];
@@ -305,6 +312,102 @@ function gateNoInlineStyle() {
   }
 }
 
+/**
+ * `A-C3`: a render throw inside an island unmounts the whole island, so every
+ * component a starter route mounts with a `client:*` directive has to sit under
+ * the error boundary.
+ *
+ * Checked structurally rather than by grepping for the boundary's name
+ * somewhere in the file: the island's own outermost element is followed through
+ * the local components it renders — typically `View -> Shell -> boundary` —
+ * until the boundary is reached or the chain ends. A view that quietly stops
+ * going through the shared shell therefore fails here rather than silently
+ * losing its boundary.
+ */
+function gateIslandErrorBoundary() {
+  const islandNames = new Set();
+  for (const file of walk(CONFIG.routesDir, (name) => name.endsWith(".astro"))) {
+    const code = stripComments(readFileSync(join(ROOT, file), "utf8"));
+    // Tag name first, then the attribute text up to the tag's `>` examined
+    // separately. One regex spanning both wants a `[^>]*` between two `\b`
+    // anchors, which is the backtracking shape `security/detect-unsafe-regex`
+    // objects to — rightly, on input this gate does not control.
+    for (const match of code.matchAll(/<([A-Z][A-Za-z0-9_]*)/g)) {
+      const end = code.indexOf(">", match.index);
+      const attributes = code.slice(match.index + match[0].length, end === -1 ? undefined : end);
+      if (/\bclient:[a-z]+/.test(attributes)) islandNames.add(match[1]);
+    }
+  }
+
+  if (islandNames.size === 0) {
+    fail("island-error-boundary", CONFIG.routesDir, "no island mount was found to check");
+    return;
+  }
+
+  // name -> the tag its render returns first, i.e. what wraps everything else.
+  const FRAGMENT = "#fragment";
+  const outermost = new Map();
+  const definedIn = new Map();
+  const componentFiles = CONFIG.componentDirs.flatMap((dir) =>
+    walk(dir, (name) => name.endsWith(".tsx")),
+  );
+  for (const file of componentFiles) {
+    const code = stripComments(readFileSync(join(ROOT, file), "utf8"));
+    // `function Name` matches the exported and local forms alike; an optional
+    // `export\s+` prefix in front of `function\s+` only adds the ambiguous
+    // adjacent-quantifier shape the security rule flags.
+    for (const match of code.matchAll(/function\s+([A-Z][A-Za-z0-9_]*)/g)) {
+      const name = match[1];
+      if (outermost.has(name)) continue;
+      const body = code.slice(match.index);
+      // Either a named element or a fragment. A fragment is recorded as such
+      // rather than skipped: an island root that opens with `<>` has no
+      // outermost component to follow, and reporting it as "not defined" —
+      // which is what skipping it produced — sends the reader to the wrong
+      // problem entirely.
+      const returned = body.match(/\breturn\s*\(?\s*<\s*([A-Za-z][A-Za-z0-9_.]*|>)/);
+      if (returned) {
+        outermost.set(name, returned[1] === ">" ? FRAGMENT : returned[1]);
+        definedIn.set(name, file);
+      }
+    }
+  }
+
+  const reaches = (name, seen = new Set()) => {
+    if (name === CONFIG.errorBoundary) return true;
+    if (seen.has(name)) return false;
+    seen.add(name);
+    const next = outermost.get(name);
+    return next === undefined ? false : reaches(next, seen);
+  };
+
+  for (const island of [...islandNames].sort()) {
+    if (!outermost.has(island)) {
+      fail(
+        "island-error-boundary",
+        island,
+        `mounted by a starter route but not defined under ${CONFIG.componentDirs.join(", ")}`,
+      );
+      continue;
+    }
+    if (outermost.get(island) === FRAGMENT) {
+      fail(
+        "island-error-boundary",
+        `${definedIn.get(island)}:${island}`,
+        `renders a fragment at its root; an island root must render ${CONFIG.errorBoundary} as its outermost element`,
+      );
+      continue;
+    }
+    if (!reaches(island)) {
+      fail(
+        "island-error-boundary",
+        `${definedIn.get(island)}:${island}`,
+        `an island root must render through ${CONFIG.errorBoundary}; a render throw otherwise blanks the island`,
+      );
+    }
+  }
+}
+
 async function gateRouteCollision() {
   const modulePath = join(ROOT, ...CONFIG.routesModule.split("/"));
   let builder;
@@ -348,6 +451,7 @@ gateNoDuplicateDataTable();
 gateSsrClientBoundary();
 gateTokenOnlyCss();
 gateNoInlineStyle();
+gateIslandErrorBoundary();
 await gateRouteCollision();
 
 const scanned = `${sourceFiles.length} source file(s), ${skinFiles.length} skin(s), ${cssFiles.length} stylesheet(s)`;
@@ -358,5 +462,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log(`[verify-fleet-gates] 7 gate(s) green over ${scanned}`);
+  console.log(`[verify-fleet-gates] 8 gate(s) green over ${scanned}`);
 }

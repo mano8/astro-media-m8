@@ -1,5 +1,11 @@
 export { MediaQueryProvider, type MediaQueryProviderProps } from "./MediaQueryProvider.js";
 export { MediaProvider, useMediaContext, type MediaContextValue } from "./MediaProvider.js";
+export {
+  MediaErrorBoundary,
+  type MediaErrorBoundaryFallbackProps,
+  type MediaErrorBoundaryLabels,
+  type MediaErrorBoundaryProps
+} from "./MediaErrorBoundary.js";
 export { RequireSuperuser } from "./RequireSuperuser.js";
 export { MediaUploadDropzone } from "./MediaUploadDropzone.js";
 export { MediaLibrary } from "./MediaLibrary.js";
