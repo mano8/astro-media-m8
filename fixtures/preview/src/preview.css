@@ -1,0 +1,137 @@
+/* Dev-only gallery chrome.
+ *
+ * Deliberately minimal and deliberately *not* the plugin's stylesheet: the
+ * point of the gallery is to show what the shipped views look like with only a
+ * token bridge under them, the way a bare Starlight host renders them. Anything
+ * elaborate here would flatter the views rather than exercise them.
+ *
+ * Colour is resolved through the same token names the plugin's scaffold CSS
+ * uses, with a neutral fallback so the fixture stands alone.
+ */
+:root {
+  --preview-fg: var(--foreground, #1c1c1e);
+  --preview-muted: var(--muted-foreground, #5c5f66);
+  --preview-bg: var(--background, #fbfbfd);
+  --preview-card: var(--card, #ffffff);
+  --preview-border: var(--border, #dcdde1);
+  --preview-accent: var(--primary, #3b5bdb);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --preview-fg: var(--foreground, #f4f5f7);
+    --preview-muted: var(--muted-foreground, #a5a8b0);
+    --preview-bg: var(--background, #16171a);
+    --preview-card: var(--card, #1e2024);
+    --preview-border: var(--border, #33363d);
+    --preview-accent: var(--primary, #91a7ff);
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--preview-bg);
+  color: var(--preview-fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+.preview-shell {
+  margin: 0 auto;
+  display: flex;
+  max-width: 78rem;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.preview-hero h1 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.75rem;
+  letter-spacing: -0.01em;
+}
+
+.preview-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--preview-accent);
+}
+
+.preview-copy {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--preview-muted);
+  font-size: 0.9rem;
+}
+
+.preview-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 1rem;
+}
+
+.preview-tabs button,
+.preview-actions button {
+  border: 1px solid var(--preview-border);
+  border-radius: 0.5rem;
+  background: var(--preview-card);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.85rem;
+}
+
+.preview-tabs button.is-active {
+  border-color: var(--preview-accent);
+  color: var(--preview-accent);
+  font-weight: 600;
+}
+
+.preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid var(--preview-border);
+  border-radius: 0.75rem;
+  background: var(--preview-card);
+  padding: 1.25rem;
+}
+
+.preview-card__header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+.preview-card__header p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--preview-muted);
+  font-size: 0.85rem;
+}
+
+.preview-stage {
+  overflow-x: auto;
+}
+
+.preview-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.preview-note {
+  color: var(--preview-muted);
+  font-size: 0.8rem;
+}

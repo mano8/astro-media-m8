@@ -52,6 +52,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && npm run build:registry",
     "build:registry": "node scripts/build-registry.mjs",
+    "preview:dev": "vite --config fixtures/preview/vite.config.ts",
+    "preview:build": "tsc -p fixtures/preview/tsconfig.json --noEmit && vite build --config fixtures/preview/vite.config.ts",
     "verify:fleet-gates": "node scripts/verify-fleet-gates.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
     "verify:registry-drift": "node scripts/verify-registry-drift.mjs",
