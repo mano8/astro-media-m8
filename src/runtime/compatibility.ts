@@ -1,6 +1,12 @@
 export const MEDIA_SERVICE_M8_CONTRACT_ID = "media-service-m8";
 export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "1.1";
 export const MEDIA_SERVICE_M8_CONTRACT = `${MEDIA_SERVICE_M8_CONTRACT_ID}@${MEDIA_SERVICE_M8_CONTRACT_VERSION}` as const;
+const MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS = new Set([
+  "1.0",
+  `${MEDIA_SERVICE_M8_CONTRACT_ID}@1.0`,
+  MEDIA_SERVICE_M8_CONTRACT_VERSION,
+  MEDIA_SERVICE_M8_CONTRACT
+]);
 // The service version range moves with media-service-m8's package version, which
 // reached 2.0.0 for the reader/writer role tiers and the anonymous PUBLIC read
 // surface. The contract moves to 1.1 for the additive UX API surface; the
@@ -128,11 +134,7 @@ export function getMediaServiceM8Compatibility(
     };
   }
 
-  if (
-    contractVersion &&
-    contractVersion !== MEDIA_SERVICE_M8_CONTRACT_VERSION &&
-    contractVersion !== MEDIA_SERVICE_M8_CONTRACT
-  ) {
+  if (contractVersion && !MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS.has(contractVersion)) {
     return {
       status: "incompatible",
       expectedContract: MEDIA_SERVICE_M8_CONTRACT,

@@ -21,6 +21,16 @@ describe("media-service-m8 compatibility", () => {
     );
   });
 
+  it("admits the additive 1.0 contract", () => {
+    expect(getMediaServiceM8Compatibility({ contract_version: "1.0" }).status).toBe("compatible");
+    expect(
+      getMediaServiceM8Compatibility({ media_service_m8_contract: "media-service-m8@1.0" }).status
+    ).toBe("compatible");
+    expect(
+      getMediaServiceM8Compatibility({ contract: { name: "media-service-m8", version: "1.0" } }).status
+    ).toBe("compatible");
+  });
+
   it("flags a mismatched contract version", () => {
     const result = getMediaServiceM8Compatibility({ media_contract_version: "2.0" });
     expect(result.status).toBe("incompatible");
