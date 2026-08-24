@@ -11,8 +11,7 @@ vi.mock("../src/runtime/api/objects.js", () => ({ getObject }));
 import {
   createMediaUploadController,
   putToStorage,
-  sha256Hex,
-  UploadError
+  sha256Hex
 } from "../src/runtime/upload/uploadController.js";
 import { ApiError } from "../src/runtime/errors.js";
 import { configureMedia, resetMediaConfig } from "../src/runtime/config.js";

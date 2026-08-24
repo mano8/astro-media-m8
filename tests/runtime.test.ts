@@ -8,8 +8,7 @@ import {
   defaultIsSuperuser,
   getMediaAuthAdapter,
   resetMediaAuthAdapter,
-  setMediaAuthAdapter,
-  type MediaAuthAdapter
+  setMediaAuthAdapter
 } from "../src/runtime/authAdapter.js";
 import {
   ApiError,

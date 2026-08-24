@@ -39,8 +39,23 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Fleet alignment gates
+        run: npm run verify:fleet-gates
+
+      - name: Registry drift
+        run: npm run verify:registry-drift
+
+      - name: Typecheck the installed registry skins
+        run: npm run verify:registry-consumer
+
+      - name: Standalone minimal-host starter routes
+        run: npm run verify:starter-routes
+
       - name: Verify npm package contents
         run: npm pack --dry-run
+
+      - name: Standalone install-from-tarball smoke
+        run: npm run verify:tarball-install
 
   test:
     name: Test (Node ${{ matrix.node-version }})
@@ -107,5 +122,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run production npm audit (HIGH/CRITICAL advisories)
-        run: npm audit --omit=dev --audit-level=high
+      # Dev dependencies stay in scope, per the fleet policy decided under `D-C5`:
+      # a dev advisory does not reach a consumer, but it does reach the machine
+      # that builds and signs the package.
+      - name: Run npm audit (HIGH/CRITICAL advisories, dev dependencies included)
+        run: npm audit --audit-level=high

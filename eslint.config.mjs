@@ -5,7 +5,9 @@ import typescriptParser from "@typescript-eslint/parser";
 import globals from "globals";
 import security from "eslint-plugin-security";
 
-const sourceFiles = ["src/**/*.{ts,tsx}"];
+// Registry skins are linted with the runtime: they are published source, and
+// scoping ESLint to `src/**` left them unread by any gate (`C12`).
+const sourceFiles = ["src/**/*.{ts,tsx}", "registry/blocks/**/*.{ts,tsx}"];
 
 export default [
   {
@@ -14,7 +16,8 @@ export default [
       "coverage/**",
       "node_modules/**",
       "registry/r/**",
-      "fixtures/**"
+      "fixtures/**",
+      ".tmp/**"
     ]
   },
   eslint.configs.recommended,
@@ -36,10 +39,39 @@ export default [
   },
   {
     files: sourceFiles,
-    ...security.configs.recommended
+    ...security.configs.recommended,
+    rules: {
+      ...security.configs.recommended.rules,
+      // This generic heuristic does not model a `Math.min`-clamped array index
+      // or a Zod-enum-constrained lookup key, both of which the skins use;
+      // security rules remain enabled otherwise (mirrors astro-auth-m8's
+      // eslint.config.mjs, which carries the same exception for its own
+      // bounded-index patterns).
+      "security/detect-object-injection": "off"
+    }
   },
   {
-    files: ["src/**/*.tsx"],
+    // Build and gate scripts are Node ESM. Without their own globals block the
+    // shared `recommended` rules report every `console`/`process`/`URL` as
+    // undefined, which is what kept `eslint .` from being runnable here (`C12`).
+    files: ["scripts/**/*.mjs", "*.mjs"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.node }
+    }
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: typescriptParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.browser, ...globals.node }
+    }
+  },
+  {
+    files: ["src/**/*.tsx", "registry/blocks/**/*.tsx"],
     ...eslintReact.configs.recommended,
     rules: {
       ...eslintReact.configs.recommended.rules,

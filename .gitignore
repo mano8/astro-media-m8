@@ -141,3 +141,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Scratch directory the verify:* gates build their fixtures in.
+.tmp/

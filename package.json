@@ -52,10 +52,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && npm run build:registry",
     "build:registry": "node scripts/build-registry.mjs",
+    "verify:fleet-gates": "node scripts/verify-fleet-gates.mjs",
+    "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
+    "verify:registry-drift": "node scripts/verify-registry-drift.mjs",
     "verify:starter-routes": "node scripts/verify-starter-routes.mjs",
+    "verify:tarball-install": "node scripts/verify-tarball-install.mjs",
     "test": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint --max-warnings 0 \"src/**/*.{ts,tsx}\"",
+    "lint": "eslint --max-warnings 0 .",
     "test:unit": "vitest run"
   },
   "dependencies": {
@@ -86,6 +90,7 @@
     "@eslint/js": "^10.0.1",
     "@mano8/astro-auth-m8": "^1.5.0",
     "@tanstack/react-query": "^5.101.1",
+    "@tanstack/react-table": "^8.20.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@typescript-eslint/eslint-plugin": "^8.65.0",

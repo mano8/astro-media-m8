@@ -83,7 +83,9 @@ export interface MediaLibraryTreeProps {
 }
 
 export function MediaLibraryTree({ labels, pageSize = 20, className }: MediaLibraryTreeProps) {
-  const t = { ...DEFAULT_LABELS, ...labels };
+  // Memoised on `labels`: a fresh object each render would re-run every
+  // downstream `useMemo` that reads it, including the column definitions.
+  const t = React.useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
   const [selection, setSelection] = React.useState<MediaCategorySelection>({ kind: "all" });
   const branchParams = React.useMemo(() => categorySelectionToListParams(selection), [selection]);
   const { items, count, loading, error, hasMore, loadMore, refresh } = useMediaObjects({

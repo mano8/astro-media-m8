@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "lucide-react": ["./types/lucide-react.tsx"],
+      "react-hook-form": ["./types/react-hook-form.tsx"],
+      "@hookform/resolvers/zod": ["./types/hookform-resolvers-zod.ts"],
+      "sonner": ["./types/sonner.tsx"],
+      "recharts": ["./types/recharts.tsx"],
+      "@mano8/astro-media-m8": ["../../dist/src/integration.d.ts"],
+      "@mano8/astro-media-m8/hooks": ["../../dist/src/runtime/hooks/index.d.ts"],
+      "@mano8/astro-media-m8/react": ["../../dist/src/runtime/react/index.d.ts"],
+      "@mano8/astro-media-m8/schemas": ["../../dist/src/runtime/schemas.d.ts"],
+      "@mano8/astro-media-m8/list-params": ["../../dist/src/runtime/listParams.d.ts"],
+      "@mano8/astro-media-m8/client": ["../../dist/src/runtime/client.d.ts"],
+      "@mano8/astro-media-m8/upload": ["../../dist/src/runtime/upload/index.d.ts"],
+      "@mano8/astro-media-m8/api": ["../../dist/src/runtime/api/index.d.ts"]
+    }
+  },
+  "include": [
+    "app.tsx",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "types/**/*.ts",
+    "types/**/*.tsx"
+  ]
+}

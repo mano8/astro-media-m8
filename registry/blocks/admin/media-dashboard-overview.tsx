@@ -116,7 +116,9 @@ function StatCard({
 export function MediaDashboardOverview({
   labels,
 }: MediaDashboardOverviewProps) {
-  const t = { ...DEFAULT_LABELS, ...labels };
+  // Memoised on `labels`: a fresh object each render would re-run every
+  // downstream `useMemo` that reads it, including the column definitions.
+  const t = React.useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
   const {
     allowed,
     stats,
@@ -138,7 +140,7 @@ export function MediaDashboardOverview({
       cancelled = true;
     };
     // The hook callbacks are stable for a given superuser identity; run once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   const retryLoad = React.useCallback(() => {
@@ -158,6 +160,25 @@ export function MediaDashboardOverview({
     bytes: row.total_bytes,
     count: row.count,
   }));
+
+  // Webhook subscriptions arrive as one fully-fetched admin collection behind no
+  // list endpoint, so the paging is legitimately local — but the canonical table
+  // is server-driven and its page props are required, so they are supplied here
+  // rather than by passing a client-side filter API the block does not have.
+  const [subscriptionPage, setSubscriptionPage] = React.useState(1);
+  const [subscriptionPageSize, setSubscriptionPageSize] = React.useState(10);
+  const allSubscriptions = React.useMemo(
+    () => subscriptions?.items ?? [],
+    [subscriptions],
+  );
+  const pagedSubscriptions = React.useMemo(
+    () =>
+      allSubscriptions.slice(
+        (subscriptionPage - 1) * subscriptionPageSize,
+        subscriptionPage * subscriptionPageSize,
+      ),
+    [allSubscriptions, subscriptionPage, subscriptionPageSize],
+  );
 
   const columns = React.useMemo<ColumnDef<SubscriptionPublic>[]>(
     () => [
@@ -287,10 +308,16 @@ export function MediaDashboardOverview({
         <CardContent>
           <DataTable
             columns={columns}
-            data={subscriptions?.items ?? []}
-            filterColumn="url"
-            filterPlaceholder={t.subUrl}
-            emptyMessage={t.subEmpty}
+            data={pagedSubscriptions}
+            rowCount={allSubscriptions.length}
+            page={subscriptionPage}
+            pageSize={subscriptionPageSize}
+            onPageChange={setSubscriptionPage}
+            onPageSizeChange={(next) => {
+              setSubscriptionPageSize(next);
+              setSubscriptionPage(1);
+            }}
+            labels={{ empty: t.subEmpty }}
           />
         </CardContent>
       </Card>
