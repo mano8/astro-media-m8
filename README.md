@@ -55,10 +55,12 @@ elsewhere.
 npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 ```
 
-`@mano8/astro-auth-m8` is a required peer: `media-service-m8` only accepts
-`fa-auth-m8`-issued tokens, so the plugin's auth adapter must be backed by
-`fa-auth-m8` (the official plugin, or a custom adapter that obtains those
-tokens). `@mano8/astro-ui-m8` is a normal dependency because the media registry
+`@mano8/astro-auth-m8` is a required peer at **`^2.2.0` or newer**:
+`media-service-m8` only accepts `fa-auth-m8`-issued tokens, so the plugin's auth
+adapter must be backed by `fa-auth-m8` (the official plugin, or a custom adapter
+that obtains those tokens). A 1.x auth is not supported — upgrade auth first, or
+the install resolves nothing that satisfies the peer.
+`@mano8/astro-ui-m8` (`^1.5.0`) is a normal dependency because the media registry
 skins compose the canonical shared table from its packaged registry output.
 `react`/`react-dom` are optional — only `./react`, `./hooks` and the starter
 views need them; `@tanstack/react-query` is a required peer once you use
@@ -231,11 +233,29 @@ Consumers should install the shared UI block first or let `shadcn` resolve it fr
   the internal `PUBLIC_FA_MEDIA_*` form consumed by the provider config.
 - All view labels are props with English defaults — pass your own i18n strings to localize.
 
+## Error boundaries
+
+Every React island root this plugin mounts — `LibraryView`, `ObjectDetailView`,
+`UploadView`, `PresetsView` and `AdminMediaView` — is wrapped in an error
+boundary. A throw inside a view renders the canonical `astro-ui-m8` error state
+in place of that island rather than tearing it down and leaving a blank region
+on the host page. Nothing is required of the host to get this.
+
+## Dev preview gallery
+
+`npm run preview:dev` serves a development-only `/_preview` gallery that mounts
+every shipped island against an in-memory stand-in for `media-service-m8`. Only
+`fetch` is replaced, so the views, hooks, API wrappers and Zod schemas you see
+are the shipped ones rather than a picture of a mock; one panel deliberately
+throws to show the error boundary. The gallery lives in `fixtures/` and is not
+part of the published tarball.
+
 ## Commands
 
 - `npm run build` — `tsc` → `dist/` + `npm run build:registry`
 - `npm run build:registry` — regenerate `registry/r/*.json` from `registry.json`
 - `npm run typecheck` — `tsc --noEmit`
 - `npm test` — Vitest with coverage (100% on the non-React runtime)
+- `npm run preview:dev` / `npm run preview:build` — the dev-only `/_preview` gallery
 
 [`media-service-m8`]: https://github.com/mano8/media-service-m8
