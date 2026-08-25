@@ -7,7 +7,6 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
       "lucide-react": ["./types/lucide-react.tsx"],
