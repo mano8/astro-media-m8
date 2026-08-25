@@ -348,5 +348,18 @@ describe("dashboard & category schemas", () => {
     expect(() =>
       s.CategoryNodeSchema.parse({ ...root, children: [{ ...child, slug: undefined }] })
     ).toThrow();
+
+    const nestedNode = (depth: number): typeof root => ({
+      ...root,
+      id: depth,
+      parent_id: depth === 1 ? null : depth - 1,
+      children: depth < s.MEDIA_CATEGORY_MAX_DEPTH ? [nestedNode(depth + 1)] : []
+    });
+    expect(s.CategoryNodeSchema.parse(nestedNode(1))).toBeTruthy();
+    const overDeep = nestedNode(1);
+    let deepest = overDeep;
+    while (deepest.children[0]) deepest = deepest.children[0];
+    deepest.children = [{ ...deepest, id: s.MEDIA_CATEGORY_MAX_DEPTH + 1, children: [] }];
+    expect(() => s.CategoryNodeSchema.parse(overDeep)).toThrow(/cannot exceed 10 levels/i);
   });
 });

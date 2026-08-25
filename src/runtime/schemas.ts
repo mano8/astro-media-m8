@@ -74,8 +74,10 @@ export const MediaObjectCategoryRefSchema = z
   .strict();
 export type MediaObjectCategoryRef = z.infer<typeof MediaObjectCategoryRefSchema>;
 
-// Recursive node: `z.lazy` defers evaluation of `children` until parse time,
-// which is what lets a self-referential zod schema exist at all.
+// Keep this aligned with media-service-m8's default
+// `MEDIA_IMPORT_MAX_CATEGORY_DEPTH`. The bounded schema stops an untrusted
+// response from driving unbounded recursive parsing in the browser.
+export const MEDIA_CATEGORY_MAX_DEPTH = 10;
 export type CategoryNode = {
   id: number;
   owner_id: string;
@@ -87,21 +89,30 @@ export type CategoryNode = {
   total_object_count: number;
   children: CategoryNode[];
 };
-export const CategoryNodeSchema: z.ZodType<CategoryNode> = z.lazy(() =>
-  z
-    .object({
-      id: z.number().int(),
-      owner_id: uuid,
-      tenant_id: uuid.nullable().default(null),
-      name: z.string().min(1).max(50),
-      slug: z.string().min(1).max(50),
-      parent_id: z.number().int().nullable().default(null),
-      object_count: z.number().int().nonnegative().default(0),
-      total_object_count: z.number().int().nonnegative().default(0),
-      children: z.array(CategoryNodeSchema).default([])
-    })
-    .strict()
-);
+
+function categoryNodeSchemaAtDepth(depth: number): z.ZodType<CategoryNode> {
+  return z.lazy(() => {
+    const children =
+      depth < MEDIA_CATEGORY_MAX_DEPTH
+        ? z.array(categoryNodeSchemaAtDepth(depth + 1))
+        : z.array(z.never()).max(0, `Category tree cannot exceed ${MEDIA_CATEGORY_MAX_DEPTH} levels.`);
+    return z
+      .object({
+        id: z.number().int(),
+        owner_id: uuid,
+        tenant_id: uuid.nullable().default(null),
+        name: z.string().min(1).max(50),
+        slug: z.string().min(1).max(50),
+        parent_id: z.number().int().nullable().default(null),
+        object_count: z.number().int().nonnegative().default(0),
+        total_object_count: z.number().int().nonnegative().default(0),
+        children: children.default([])
+      })
+      .strict();
+  });
+}
+
+export const CategoryNodeSchema = categoryNodeSchemaAtDepth(1);
 
 export const CategoryTreeSchema = z
   .object({

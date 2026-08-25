@@ -209,7 +209,8 @@ via `useMediaObjects`; because that hook is cursor-paginated rather than page-nu
 the table is pinned to the single loaded page and "Load more" is wired to the table's
 add-button slot instead of forking a second results table. Both compose rather than
 reimplement the shared `tree-view`/`data-table` blocks, per this package's registry
-convention.
+convention. Headless category-tree parsing is bounded to 10 levels, matching the
+service default, so malformed responses cannot drive unbounded browser recursion.
 
 Files land under `src/components/fa-media/` (the items' `target`), import shadcn
 primitives via `@/components/ui/*`, and pull headless logic from the installed package.
