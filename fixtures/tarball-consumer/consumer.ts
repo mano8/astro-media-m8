@@ -11,7 +11,7 @@ import {
   MEDIA_SERVICE_M8_CONTRACT,
   MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE
 } from "@mano8/astro-media-m8/compatibility";
-import { ObjectListParams } from "@mano8/astro-media-m8/schemas";
+import type { ObjectListParams } from "@mano8/astro-media-m8/schemas";
 import { buildMediaRoutes } from "@mano8/astro-media-m8/routes";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -51,15 +51,25 @@ assert(
 );
 
 // The category-scoped list vocabulary the tree skins drive survives the build.
-const params = ObjectListParams.parse({
-  category_id: "00000000-0000-0000-0000-000000000000",
+// `ObjectListParams` is a published *type*, not a Zod schema — the request
+// vocabulary is serialised into a query string, never parsed back — so this is
+// a compile-time assertion and the `tsc` run above is what enforces it. A
+// tarball whose types dropped `category_id` or `include_descendants` stops
+// compiling right here.
+const params: ObjectListParams = {
+  category_id: 1,
   include_descendants: true
-});
-assert(params.include_descendants === true, "include_descendants did not survive the parse");
-assert(
-  !ObjectListParams.safeParse({ include_descendants: "yes" }).success,
-  "a non-boolean include_descendants was accepted"
-);
+};
+assert(params.include_descendants === true, "include_descendants did not survive the build");
+assert(params.category_id === 1, "category_id did not survive the build");
+
+// And the vocabulary is still typed, not widened to `unknown`: `@ts-expect-error`
+// fails the build if this assignment ever becomes legal.
+const widened: ObjectListParams = {
+  // @ts-expect-error include_descendants is a boolean in the published types
+  include_descendants: "yes"
+};
+assert(widened !== undefined, "the negative type probe was elided");
 
 // The starter route map is buildable from the installed package and does not
 // collide with itself.
