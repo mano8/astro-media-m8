@@ -12,6 +12,7 @@ const distDir = join(fixture, "dist");
 const expectedRoutes = [
   "media/index.html",
   "media/upload/index.html",
+  "media/categories/index.html",
   "media/presets/index.html",
   "admin/media/index.html"
 ];

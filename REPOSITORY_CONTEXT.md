@@ -49,8 +49,8 @@ host source edits outside documented registration points.
 - Require `@mano8/astro-auth-m8` as the official M8 auth peer. Couple only through
   `MediaAuthAdapter` / `createFaAuthAdapter`, wiring it after `faAuth`.
 - `headless` provides schemas, API wrappers, upload control, and the auth adapter
-  without pages; `starter` adds upload, library, object, presets, and admin Astro
-  routes; `scaffolded` uses consumer-owned views.
+  without pages; `starter` adds library (with an upload dialog), category CRUD,
+  object, presets, and admin Astro routes; `scaffolded` uses consumer-owned views.
 - Admin routes and maintenance actions require the admin pre-guard; destructive
   actions belong in focused confirmation panels. The media admin landing view is
   dashboard-oriented.

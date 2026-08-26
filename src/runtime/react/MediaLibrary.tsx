@@ -16,6 +16,7 @@ import { useCategoryTree } from "../hooks/useMediaCategories.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
 import { useMediaTransfer } from "../hooks/useMediaTransfer.js";
 import { friendlyReasonMessage } from "../errors.js";
+import { MediaUploadDropzone } from "./MediaUploadDropzone.js";
 import type {
   CategoryNode,
   ExportFormat,
@@ -122,6 +123,7 @@ const selectedTreeNodeStyle: CSSProperties = {
 };
 const buttonClassName =
   "fa-media-button inline-flex min-h-8 items-center rounded-lg border border-input px-3 py-1 text-sm font-medium transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50";
+const toolbarActionsClassName = "fa-media-toolbar-actions flex flex-wrap items-center justify-end gap-2";
 const labelInlineClassName = "fa-media-label-inline flex items-center gap-2 text-sm";
 const transferPanelClassName =
   "fa-media-transfer-panel grid gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground md:grid-cols-2";
@@ -999,10 +1001,13 @@ function MediaTransferPanel({
 
 export function MediaLibrary({
   objectHref,
-  initial = {}
+  initial = {},
+  initialUploadOpen = false
 }: {
   objectHref?: (id: string) => string;
   initial?: ObjectListParams;
+  /** Open the library's upload dialog on first render (legacy upload routes). */
+  initialUploadOpen?: boolean;
 }) {
   const [query, setQuery] = useState<ObjectListParams>(initial);
   const [view, setView] = useState<MediaLibraryView>("list");
@@ -1015,7 +1020,26 @@ export function MediaLibrary({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(initialUploadOpen);
+  const uploadCloseRef = useRef<HTMLButtonElement>(null);
   const { items, count, loading, error, hasMore, refresh, loadMore } = useMediaObjects(query);
+
+  useEffect(() => {
+    if (!uploadOpen) return;
+
+    const previousActive = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    uploadCloseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setUploadOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      previousActive?.focus();
+    };
+  }, [uploadOpen]);
 
   /**
    * Patches the branch params onto `query` rather than replacing it, so the
@@ -1045,30 +1069,35 @@ export function MediaLibrary({
       <header className="fa-media-toolbar">
         <div className={titleRowClassName}>
           <h2>Media library ({count})</h2>
-          <div className={viewSwitcherClassName} aria-label="Media library view">
-            {VIEW_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={view === value}
-                className={viewButtonClassName}
-                style={view === value ? activeViewButtonStyle : undefined}
-                onClick={() => setView(value)}
-              >
-                {label}
-              </button>
-            ))}
+          <div className={toolbarActionsClassName}>
+            <div className={viewSwitcherClassName} aria-label="Media library view">
+              {VIEW_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={view === value}
+                  className={viewButtonClassName}
+                  style={view === value ? activeViewButtonStyle : undefined}
+                  onClick={() => setView(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={buttonClassName}
+              aria-pressed={transferOpen}
+              aria-expanded={transferOpen}
+              aria-controls="fa-media-transfer-panel"
+              onClick={() => setTransferOpen((open) => !open)}
+            >
+              Import / Export
+            </button>
+            <button type="button" className={buttonClassName} onClick={() => setUploadOpen(true)}>
+              Upload media
+            </button>
           </div>
-          <button
-            type="button"
-            className={buttonClassName}
-            aria-pressed={transferOpen}
-            aria-expanded={transferOpen}
-            aria-controls="fa-media-transfer-panel"
-            onClick={() => setTransferOpen((open) => !open)}
-          >
-            Import / Export
-          </button>
         </div>
         <div className={filterRowClassName}>
           <input
@@ -1113,6 +1142,35 @@ export function MediaLibrary({
       {transferOpen ? (
         <div id="fa-media-transfer-panel">
           <MediaTransferPanel filters={query} exportScopeLabel={view === "tree" ? exportBranchLabel(branchSelection) : undefined} />
+        </div>
+      ) : null}
+      {uploadOpen ? (
+        <div
+          className="fa-media-dialog-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setUploadOpen(false);
+          }}
+        >
+          <div
+            className="fa-media-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fa-media-upload-dialog-title"
+          >
+            <header className="fa-media-dialog-header">
+              <h2 id="fa-media-upload-dialog-title">Upload media</h2>
+              <button ref={uploadCloseRef} type="button" aria-label="Close upload dialog" onClick={() => setUploadOpen(false)}>
+                Close
+              </button>
+            </header>
+            <MediaUploadDropzone
+              heading={false}
+              onUploaded={() => {
+                setUploadOpen(false);
+                void refresh();
+              }}
+            />
+          </div>
         </div>
       ) : null}
       {error ? <p role="alert">Failed to load media</p> : null}

@@ -1,6 +1,6 @@
 {
   "name": "@mano8/astro-media-m8",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Astro integration and headless client for media-service-m8.",
   "type": "module",
   "license": "MIT",
@@ -41,6 +41,7 @@
     "./routes": "./dist/src/runtime/routes.js",
     "./routes/upload.astro": "./src/routes/upload.astro",
     "./routes/library.astro": "./src/routes/library.astro",
+    "./routes/categories.astro": "./src/routes/categories.astro",
     "./routes/object/[id].astro": "./src/routes/object/[id].astro",
     "./routes/presets.astro": "./src/routes/presets.astro",
     "./routes/admin/media.astro": "./src/routes/admin/media.astro",

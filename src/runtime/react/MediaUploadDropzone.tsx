@@ -40,6 +40,7 @@ export function MediaUploadDropzone({
   defaultCategoryIds,
   showUserCategories = true,
   checksum = "sha256",
+  heading = "Upload media",
   onUploaded
 }: {
   defaultCategory?: MediaCategory;
@@ -53,6 +54,8 @@ export function MediaUploadDropzone({
    */
   showUserCategories?: boolean;
   checksum?: "none" | "sha256";
+  /** Visible section heading. Pass false when a surrounding dialog labels the form. */
+  heading?: string | false;
   onUploaded?: (object: MediaObjectPublic) => void;
 }) {
   const { upload, abort, progress, error, busy } = useMediaUpload();
@@ -84,7 +87,7 @@ export function MediaUploadDropzone({
 
   return (
     <section className="not-content fa-media-panel">
-      <h2>Upload media</h2>
+      {heading ? <h2>{heading}</h2> : null}
       <div className="fa-media-field">
         <div className="fa-media-field-control">
           <label className={labelClassName} htmlFor="fa-media-upload-category">Category</label>

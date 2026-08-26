@@ -50,6 +50,14 @@
   justify-content: space-between;
 }
 
+.fa-media-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .fa-media-filter-row {
   flex-direction: column;
 }
@@ -227,6 +235,49 @@
 
 .fa-media-panel [role="alert"] {
   color: var(--fa-media-danger-fg);
+}
+
+/* Library-owned upload popup. The starter runtime stays framework-neutral,
+   while consumers can replace these classes with their own dialog skin. */
+.fa-media-dialog-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 1rem;
+  background: color-mix(in srgb, CanvasText 55%, transparent);
+}
+
+.fa-media-dialog {
+  box-sizing: border-box;
+  width: min(42rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.25rem;
+  border: 1px solid var(--fa-media-border, var(--border, CanvasText));
+  border-radius: 0.75rem;
+  background: var(--fa-media-popover-bg, var(--popover, Canvas));
+  color: var(--fa-media-popover-fg, var(--popover-foreground, CanvasText));
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, CanvasText 30%, transparent);
+}
+
+.fa-media-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fa-media-dialog-header h2 {
+  margin: 0;
+}
+
+.fa-media-dialog > .fa-media-panel {
+  margin: 0;
+  padding: 1rem 0 0;
+  border: 0;
 }
 
 /* Multi-select nested category picker (upload + object detail). */

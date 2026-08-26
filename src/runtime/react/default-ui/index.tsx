@@ -3,8 +3,8 @@ import { MediaProvider } from "../MediaProvider.js";
 import { MediaQueryProvider } from "../MediaQueryProvider.js";
 import { MediaErrorBoundary } from "../MediaErrorBoundary.js";
 import { AdminMediaPanel } from "../AdminMediaPanel.js";
+import { CategoryManager } from "../CategoryManager.js";
 import { MediaLibrary } from "../MediaLibrary.js";
-import { MediaUploadDropzone } from "../MediaUploadDropzone.js";
 import { ObjectDetail } from "../ObjectDetail.js";
 import { PresetEditor } from "../PresetEditor.js";
 import type { MediaRuntimeConfig } from "../../config.js";
@@ -27,22 +27,34 @@ function Shell({ config, children }: { config?: ViewConfig; children: ReactNode 
   );
 }
 
-export function UploadView({ config, libraryHref }: { config?: ViewConfig; libraryHref?: string }) {
+export function UploadView({ config }: { config?: ViewConfig; libraryHref?: string }) {
   return (
     <Shell config={config}>
-      <MediaUploadDropzone
-        onUploaded={() => {
-          if (libraryHref) window.location.assign(libraryHref);
-        }}
-      />
+      <MediaLibrary initialUploadOpen />
     </Shell>
   );
 }
 
-export function LibraryView({ config, objectHref }: { config?: ViewConfig; objectHref?: (id: string) => string }) {
+export function LibraryView({
+  config,
+  objectHref,
+  initialUploadOpen = false
+}: {
+  config?: ViewConfig;
+  objectHref?: (id: string) => string;
+  initialUploadOpen?: boolean;
+}) {
   return (
     <Shell config={config}>
-      <MediaLibrary objectHref={objectHref} />
+      <MediaLibrary objectHref={objectHref} initialUploadOpen={initialUploadOpen} />
+    </Shell>
+  );
+}
+
+export function CategoriesView({ config }: { config?: ViewConfig }) {
+  return (
+    <Shell config={config}>
+      <CategoryManager />
     </Shell>
   );
 }

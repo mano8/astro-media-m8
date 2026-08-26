@@ -52,6 +52,22 @@ vi.mock("../src/runtime/api/transfer.js", () => ({
   startImport: apiMocks.startImport
 }));
 
+vi.mock("../src/runtime/react/MediaUploadDropzone.js", () => ({
+  MediaUploadDropzone: ({ onUploaded }: { onUploaded?: (object: MediaObjectPublic) => void }) => (
+    <section data-testid="upload-form">
+      <fieldset aria-label="User categories">
+        <legend>User categories</legend>
+        <label>
+          <input type="checkbox" /> Invoices
+        </label>
+      </fieldset>
+      <button type="button" onClick={() => onUploaded?.({} as MediaObjectPublic)}>
+        Finish upload
+      </button>
+    </section>
+  )
+}));
+
 import { MediaLibrary } from "../src/runtime/react/MediaLibrary.js";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -203,6 +219,72 @@ afterEach(() => {
 });
 
 describe("MediaLibrary", () => {
+  it("opens upload from the top-right toolbar in a modal with the category selector", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([]));
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+
+    const uploadButton = [...view.container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Upload media"
+    );
+    expect(uploadButton?.closest(".fa-media-toolbar-actions")).not.toBeNull();
+    uploadButton?.focus();
+    click(uploadButton);
+
+    const dialog = view.container.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"]');
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("fa-media-upload-dialog-title");
+    expect(dialog?.querySelector('fieldset[aria-label="User categories"]')).not.toBeNull();
+    expect(view.container.ownerDocument.activeElement?.getAttribute("aria-label")).toBe("Close upload dialog");
+
+    // Pointer activity inside the popup must not dismiss it.
+    act(() => {
+      dialog?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(view.container.querySelector('[role="dialog"]')).not.toBeNull();
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await waitFor(() => expect(view.container.querySelector('[role="dialog"]')).toBeNull());
+    expect(view.container.ownerDocument.activeElement).toBe(uploadButton);
+
+    view.unmount();
+  });
+
+  it("supports the legacy initially-open route, refreshes after upload, and closes from button or backdrop", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([]));
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary initialUploadOpen />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(view.container.querySelector('[role="dialog"]')).not.toBeNull());
+
+    click(view.container.querySelector('button[aria-label="Close upload dialog"]'));
+    await waitFor(() => expect(view.container.querySelector('[role="dialog"]')).toBeNull());
+
+    click([...view.container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Upload media"));
+    const backdrop = view.container.querySelector<HTMLElement>(".fa-media-dialog-backdrop");
+    act(() => {
+      backdrop?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    await waitFor(() => expect(view.container.querySelector('[role="dialog"]')).toBeNull());
+
+    click([...view.container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Upload media"));
+    const listCallsBeforeUpload = apiMocks.listObjects.mock.calls.length;
+    click([...view.container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Finish upload"));
+    await waitFor(() => expect(view.container.querySelector('[role="dialog"]')).toBeNull());
+    await waitFor(() => expect(apiMocks.listObjects.mock.calls.length).toBeGreaterThan(listCallsBeforeUpload));
+
+    view.unmount();
+  });
+
   it("switches between list, grid, and masonry views with image preview loading attributes", async () => {
     const items = [...Array.from({ length: 7 }, (_value, index) => makeObject(index + 1)), makeObject(8, "application/pdf")];
     apiMocks.listObjects.mockResolvedValue(page(items));

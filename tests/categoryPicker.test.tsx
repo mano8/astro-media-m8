@@ -387,6 +387,14 @@ describe("MediaUploadDropzone user categories", () => {
     expect(apiMocks.getCategoryTree).not.toHaveBeenCalled();
     view.unmount();
   });
+
+  it("can defer its visible heading to a surrounding dialog", async () => {
+    const view = render(withClient(<MediaUploadDropzone heading={false} />));
+    await waitFor(() => expect(view.container.querySelector('input[type="file"]')).toBeTruthy());
+    expect(view.container.querySelector("h2")).toBeNull();
+    expect(view.container.querySelector(".fa-media-category-picker")).not.toBeNull();
+    view.unmount();
+  });
 });
 
 describe("ObjectDetail re-filing", () => {

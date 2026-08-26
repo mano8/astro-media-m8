@@ -69,7 +69,9 @@ views need them; `@tanstack/react-query` is a required peer once you use
 ## Modes
 
 - **headless** — schemas, API wrappers, upload controller, stores; no pages.
-- **starter** — injects upload / library / object / presets / admin routes.
+- **starter** — injects library (with an upload dialog), category CRUD, object,
+  presets and admin routes. The legacy upload route remains available for
+  direct links and opens the same library upload workflow.
 - **scaffolded** — `views.strategy: "scaffolded"` to own the view files.
 
 ## Quick start

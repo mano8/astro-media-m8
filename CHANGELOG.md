@@ -4,6 +4,21 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Category CRUD starter page.** Starter mode now ships `/media/categories`,
+  backed by the existing tenant-scoped `CategoryManager`, so consumers can
+  mount category creation, rename, reparent and delete as a real page.
+
+### Changed
+
+- **Upload is a library action.** `MediaLibrary` now places an `Upload media`
+  action at the right of its top toolbar and opens the upload form as an
+  accessible modal. The dialog includes the existing nested user-category
+  selector, closes on Escape/backdrop/completion and refreshes the library
+  after a successful upload. The legacy `/media/upload` starter route opens
+  this same library dialog for direct-link compatibility.
+
 ## [1.2.0] - 2026-08-25
 
 ### Added
