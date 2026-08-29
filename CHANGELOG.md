@@ -12,6 +12,21 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
 
 ### Changed
 
+- **The fleet gate exempts one authorization specifier** (remediation `W7.7`,
+  decision 4). `scripts/verify-fleet-gates.mjs` is carried byte-identically by
+  all four plugins, so a fleet-wide rule change lands in all four or in none.
+  `no-cross-plugin-import` now permits exactly
+  `@mano8/astro-auth-m8/authorization` — the pure, framework-neutral mirror of
+  `auth_sdk_m8/authorization.py` — so a plugin can meet `RBAC-06`, one role
+  hierarchy, by importing it rather than re-implementing it. Every other
+  subpath of the auth peer stays refused. A new `authorization-purity` gate
+  makes that exemption conditional: in a package that uses it, it walks the
+  module's import closure and fails on React, on any bare dependency other than
+  `zod`, or on any read of a runtime global. This package imports no
+  authorization module today, so the second gate is inert here and nothing in
+  its behaviour, surface or dependencies changes; it carries the rule so the
+  fleet stays one rule.
+
 - **Upload is a library action.** `MediaLibrary` now places an `Upload media`
   action at the right of its top toolbar and opens the upload form as an
   accessible modal. The dialog includes the existing nested user-category

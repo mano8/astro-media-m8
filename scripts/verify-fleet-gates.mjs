@@ -11,7 +11,11 @@
  * with no parent workspace checkout, so this file describes only this package.
  *
  * Gates:
- *   no-cross-plugin-import   no other business plugin is imported at runtime
+ *   no-cross-plugin-import   no other business plugin is imported at runtime,
+ *                            except the auth peer's framework-neutral
+ *                            authorization primitives (decision 4)
+ *   authorization-purity     that exemption stays pure: no React, no runtime
+ *                            effects, anywhere in its import closure
  *   skin-import-surface      registry skins import from the declared surface
  *   no-duplicate-data-table  skins consume the canonical table, never fork it
  *   ssr-client-boundary      server-only modules never reach a client module
@@ -21,7 +25,7 @@
  *   island-error-boundary    every island a route mounts sits under a boundary
  */
 import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -49,6 +53,62 @@ const CONFIG = {
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".astro"];
 const BUSINESS_PLUGIN = /^@mano8[/]astro-(auth|media|prompt|reparto)-m8(?:[/]|$)/;
 const SHARED_UI = /^@mano8[/]astro-ui-m8(?:[/]|$)/;
+/**
+ * The one cross-plugin specifier this gate permits (decision 4, 2026-08-29).
+ *
+ * `@mano8/astro-auth-m8/authorization` is a pure, framework-neutral module: the
+ * TypeScript mirror of `auth_sdk_m8/authorization.py`, exporting the role
+ * hierarchy and the role/flag truth table and nothing else - no component, no
+ * hook, no store, no Astro binding. `RBAC-06` asks for exactly one role
+ * hierarchy in the fleet, and until this widening the two rules could not both
+ * be satisfied: a plugin could only re-implement the hierarchy and pin the copy
+ * with a test.
+ *
+ * The exemption is one exact specifier, not a package prefix. Every other
+ * subpath of `@mano8/astro-auth-m8` stays refused, so no plugin reaches its
+ * runtime, its React surface or its integration through this door, and the
+ * plugins stay independently installable in every other respect. A plugin that
+ * uses it already declares the auth peer in `peerDependencies`, so the import
+ * adds no install the consumer did not already owe.
+ */
+const AUTHORIZATION_PRIMITIVES = "@mano8/astro-auth-m8/authorization";
+/** The package that specifier belongs to, and the subpath within it. */
+const AUTHORIZATION_PACKAGE = "@mano8/astro-auth-m8";
+const AUTHORIZATION_SUBPATH = "./authorization";
+/**
+ * Bare specifiers the authorization closure may reach.
+ *
+ * The exemption above is only worth having while the module it names stays
+ * what it claims to be. `zod` is a pure schema library and the hierarchy is
+ * sourced from a schema; anything else — `react` and `react-dom` first among
+ * them — turns a shared predicate into a shared runtime, which is the coupling
+ * `no-cross-plugin-import` exists to prevent.
+ */
+const AUTHORIZATION_PURE_DEPENDENCIES = new Set(["zod"]);
+/**
+ * Runtime effects a pure authorization module must not reach for.
+ *
+ * A predicate answers from its arguments. A module that touches the DOM, the
+ * network, storage or the process is doing something a second plugin cannot
+ * safely share, whatever its exports look like.
+ */
+const AUTHORIZATION_GLOBALS = [
+  "document",
+  "window",
+  "localStorage",
+  "sessionStorage",
+  "globalThis",
+  "XMLHttpRequest",
+  "fetch",
+  "process",
+];
+/**
+ * Matches a *read of the global*, not a property that happens to share its
+ * name: `window.location` is an effect, `{ window: RetentionWindowSchema }` and
+ * `client.fetch(...)` are not.
+ */
+const globalRead = (name) => new RegExp(String.raw`(?<![.\w$])${name}(?![\w$]|\s*:)`);
+const AUTHORIZATION_EFFECTS = AUTHORIZATION_GLOBALS.map((name) => [name, globalRead(name)]);
 /** Written as separate anchored patterns rather than one nested alternation. */
 const SERVER_SPECIFIERS = [
   /[.]server$/,
@@ -173,8 +233,95 @@ function gateNoCrossPluginImport() {
   for (const [file, source] of sources) {
     for (const specifier of importSpecifiers(source)) {
       if (!BUSINESS_PLUGIN.test(specifier)) continue;
+      if (specifier === AUTHORIZATION_PRIMITIVES) continue;
       if (specifier === CONFIG.packageName || specifier.startsWith(`${CONFIG.packageName}/`)) continue;
       fail("no-cross-plugin-import", file, `imports another business plugin: ${specifier}`);
+    }
+  }
+}
+
+/**
+ * The authorization exemption stays an exemption for a *pure* module.
+ *
+ * `no-cross-plugin-import` lets one specifier through. This gate is the reason
+ * that is safe: it resolves the module the auth peer actually publishes for
+ * `./authorization`, walks its relative import closure, and fails if anything
+ * in it reaches a bare dependency outside the pure set or touches a runtime
+ * effect. The exemption is one exact subpath, never `@mano8/astro-auth-m8/*`,
+ * so nothing else in the peer is reachable through it.
+ *
+ * It runs only in a package that actually imports the module — the other
+ * plugins carry the same code and skip it — and it fails closed: if the peer is
+ * not installed, an importer cannot be verified and that is a failure, not a
+ * pass.
+ */
+function gateAuthorizationPurity() {
+  const importers = [...sources]
+    .filter(([, source]) => importSpecifiers(source).includes(AUTHORIZATION_PRIMITIVES))
+    .map(([file]) => file);
+  if (importers.length === 0) return;
+
+  // In the package that *owns* the module the import is not cross-plugin at
+  // all, and the promise is this repository's own to keep: verify what it
+  // publishes, from its own build, rather than a copy under `node_modules`.
+  const owned = CONFIG.packageName === AUTHORIZATION_PACKAGE;
+  const packageRoot = owned ? ROOT : join(ROOT, "node_modules", ...AUTHORIZATION_PACKAGE.split("/"));
+  const show = (file) =>
+    `${owned ? "" : `${AUTHORIZATION_PACKAGE}:`}${file.slice(packageRoot.length + 1).split("\\").join("/")}`;
+
+  let entry;
+  try {
+    const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+    entry = manifest.exports?.[AUTHORIZATION_SUBPATH];
+  } catch {
+    entry = undefined;
+  }
+  if (typeof entry !== "string") {
+    fail(
+      "authorization-purity",
+      importers[0],
+      owned
+        ? `this package no longer publishes ${AUTHORIZATION_SUBPATH}, which the fleet gate exempts by name`
+        : `cannot verify ${AUTHORIZATION_PRIMITIVES}: ${AUTHORIZATION_PACKAGE} is not installed, or no longer publishes ${AUTHORIZATION_SUBPATH}`,
+    );
+    return;
+  }
+
+  const seen = new Set();
+  const queue = [resolve(packageRoot, entry)];
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (seen.has(file)) continue;
+    seen.add(file);
+
+    let source;
+    try {
+      source = readFileSync(file, "utf8");
+    } catch {
+      fail("authorization-purity", show(file), "reachable from the authorization module but unreadable");
+      continue;
+    }
+
+    const code = stripComments(source);
+    for (const [name, effect] of AUTHORIZATION_EFFECTS) {
+      if (effect.test(code)) {
+        fail("authorization-purity", show(file), `the authorization closure reaches the runtime global ${name}`);
+      }
+    }
+
+    for (const specifier of importSpecifiers(source)) {
+      if (specifier.startsWith(".")) {
+        queue.push(resolve(dirname(file), specifier));
+        continue;
+      }
+      const scoped = specifier.startsWith("@");
+      const bare = specifier.split("/").slice(0, scoped ? 2 : 1).join("/");
+      if (AUTHORIZATION_PURE_DEPENDENCIES.has(bare)) continue;
+      fail(
+        "authorization-purity",
+        show(file),
+        `the authorization closure depends on ${specifier}; only ${[...AUTHORIZATION_PURE_DEPENDENCIES].join(", ")} is pure enough to share`,
+      );
     }
   }
 }
@@ -206,7 +353,9 @@ function gateSkinImportSurface() {
         }
         continue;
       }
-      if (BUSINESS_PLUGIN.test(specifier)) continue; // reported by no-cross-plugin-import
+      // Refused ones are reported by no-cross-plugin-import; the authorization
+      // primitives are permitted there, and so permitted in a skin too.
+      if (BUSINESS_PLUGIN.test(specifier)) continue;
       if (specifier.includes("fa-ui-m8")) {
         fail("skin-import-surface", file, `imports host internals: ${specifier}`);
       }
@@ -446,6 +595,7 @@ async function gateRouteCollision() {
 }
 
 gateNoCrossPluginImport();
+gateAuthorizationPurity();
 gateSkinImportSurface();
 gateNoDuplicateDataTable();
 gateSsrClientBoundary();
@@ -462,5 +612,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log(`[verify-fleet-gates] 8 gate(s) green over ${scanned}`);
+  console.log(`[verify-fleet-gates] 9 gate(s) green over ${scanned}`);
 }
