@@ -18,6 +18,15 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
   selector, closes on Escape/backdrop/completion and refreshes the library
   after a successful upload. The legacy `/media/upload` starter route opens
   this same library dialog for direct-link compatibility.
+- **The required auth peer is raised to `@mano8/astro-auth-m8` `^2.3.0`** in
+  both `peerDependencies` and `devDependencies`. `2.3.0` coordinates the two
+  token-refresh paths behind one single-flight guard; below it, a page mounting
+  both paths against one expired token can issue two rotations, which
+  `fa-auth-m8` reads as token reuse and answers by revoking every session for
+  the account. This plugin reaches that path through
+  `installFaAuthBrowserAdapter`, so it is behaviour this package depends on
+  rather than one it merely tolerates. The previous `^2.2.0` range already
+  resolved `2.3.0` on a fresh install; the floor states the requirement.
 
 ## [1.2.0] - 2026-08-25
 
