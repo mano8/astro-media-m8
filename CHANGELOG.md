@@ -33,15 +33,21 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
   selector, closes on Escape/backdrop/completion and refreshes the library
   after a successful upload. The legacy `/media/upload` starter route opens
   this same library dialog for direct-link compatibility.
-- **The required auth peer is raised to `@mano8/astro-auth-m8` `^2.3.0`** in
-  both `peerDependencies` and `devDependencies`. `2.3.0` coordinates the two
-  token-refresh paths behind one single-flight guard; below it, a page mounting
-  both paths against one expired token can issue two rotations, which
-  `fa-auth-m8` reads as token reuse and answers by revoking every session for
-  the account. This plugin reaches that path through
-  `installFaAuthBrowserAdapter`, so it is behaviour this package depends on
-  rather than one it merely tolerates. The previous `^2.2.0` range already
-  resolved `2.3.0` on a fresh install; the floor states the requirement.
+- **The required auth peer is raised to `@mano8/astro-auth-m8` `^2.4.0`** in
+  both `peerDependencies` and `devDependencies`. Two separate reasons stack, and
+  the floor is the higher of them. `2.3.0` coordinates the two token-refresh
+  paths behind one single-flight guard; below it, a page mounting both paths
+  against one expired token can issue two rotations, which `fa-auth-m8` reads as
+  token reuse and answers by revoking every session for the account. This plugin
+  reaches that path through `installFaAuthBrowserAdapter`, so it is behaviour
+  this package depends on rather than one it merely tolerates. `2.4.0` then
+  makes `@mano8/astro-auth-m8/authorization` a **supported** cross-plugin import
+  surface rather than an internal module siblings happen to be able to reach —
+  the guarantee the fleet's widened `no-cross-plugin-import` gate (`C12`) and
+  its `authorization-purity` companion are written against. This package carries
+  both gates, so it takes the floor that makes them meaningful even though its
+  own adapter does not yet import the module. The previous `^2.2.0` range
+  already resolved these on a fresh install; the floor states the requirement.
 
 ## [1.2.0] - 2026-08-25
 
