@@ -4,6 +4,15 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-30 · category page, upload-in-library, auth peer floor
+
+**Major bump.** The required `@mano8/astro-auth-m8` peer moves from `^2.2.0` to
+`^2.4.1`: a consumer cannot take this release without also moving its auth
+plugin, which is a breaking change to this package's install contract even
+though no export of its own is removed or renamed. The version was set to
+`2.0.0` in source before this entry existed; this section is the fold that gives
+it a record.
+
 ### Added
 
 - **Category CRUD starter page.** Starter mode now ships `/media/categories`,
@@ -33,7 +42,7 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
   selector, closes on Escape/backdrop/completion and refreshes the library
   after a successful upload. The legacy `/media/upload` starter route opens
   this same library dialog for direct-link compatibility.
-- **The required auth peer is raised to `@mano8/astro-auth-m8` `^2.4.0`** in
+- **The required auth peer is raised to `@mano8/astro-auth-m8` `^2.4.1`** in
   both `peerDependencies` and `devDependencies`. Two separate reasons stack, and
   the floor is the higher of them. `2.3.0` coordinates the two token-refresh
   paths behind one single-flight guard; below it, a page mounting both paths
@@ -48,6 +57,13 @@ All notable changes to `@mano8/astro-media-m8` are documented here.
   both gates, so it takes the floor that makes them meaningful even though its
   own adapter does not yet import the module. The previous `^2.2.0` range
   already resolved these on a fresh install; the floor states the requirement.
+  The floor landed as `^2.4.0` and was repointed to `^2.4.1` once that
+  tooling-alignment release was published; the lockfile resolves
+  `astro-auth-m8-2.4.1.tgz`.
+
+- **`@mano8/astro-ui-m8` is repointed `^1.5.0` → `^1.5.1`**, the published
+  tooling-alignment release, so the manifest no longer names a range ahead of
+  the registry. The lockfile resolves `astro-ui-m8-1.5.1.tgz`.
 
 ## [1.2.0] - 2026-08-25
 
