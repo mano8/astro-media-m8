@@ -17,7 +17,7 @@ from [mano8/astro-ui-m8](https://github.com/mano8/astro-ui-m8), targets the
 media backend at [mano8/media-service-m8](https://github.com/mano8/media-service-m8),
 and composes into the [mano8/fa-ui-m8](https://github.com/mano8/fa-ui-m8) host app.
 
-### Related repositories
+## Related repositories
 
 - [`media-service-m8`](https://github.com/mano8/media-service-m8) — the FastAPI backend this plugin fronts.
 - [`astro-ui-m8`](https://github.com/mano8/astro-ui-m8) — canonical shared shadcn registry (data-table, state components) this plugin's admin views build on.
