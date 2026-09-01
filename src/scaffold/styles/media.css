@@ -167,8 +167,18 @@
   align-items: center;
 }
 
+/* A six-column table has no readable narrow form, so it scrolls inside its own
+   box rather than squashing its cells or pushing the whole page sideways. The
+   `min-width` is what gives the bar something to reveal — `width: 100%` alone
+   can never exceed the wrapper. */
+.fa-media-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .fa-media-table {
   width: 100%;
+  min-width: 34rem;
   border-collapse: collapse;
 }
 
@@ -436,10 +446,14 @@
   width: 100%;
 }
 
-@media (min-width: 48rem) {
+/* Two panes from 64rem, not 48rem: at 48rem a category pane and a six-column
+   table shared 768px and both were cramped, so the stacked layout now carries
+   the tablet range. `stretch`, not `flex-start` — that is what makes the pane
+   share the results column's height instead of hugging its own content. */
+@media (min-width: 64rem) {
   .fa-media-tree-layout {
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;
   }
 }
 
@@ -453,22 +467,30 @@
   box-sizing: border-box;
   flex-shrink: 0;
   width: 100%;
-  max-height: 50vh;
+  max-height: 45vh;
+  /* Required for the scroll above to work once the pane is a stretched flex
+     item: without it the item refuses to shrink below its content height. */
+  min-height: 0;
   overflow: auto;
   padding: 0.75rem;
   border: 1px solid var(--fa-media-border);
   border-radius: 0.5rem;
 }
 
-@media (min-width: 48rem) {
+/* `clamp` rather than a flat 16rem: that was the same pane on a 13" laptop and
+   a 27" monitor, and too narrow for a nested tree on both. The height cap only
+   bites when the tree is taller than the results column — stretched by the row,
+   the pane otherwise simply matches it. */
+@media (min-width: 64rem) {
   .fa-media-tree-pane {
-    width: 16rem;
-    max-height: 70vh;
+    width: clamp(16rem, 24vw, 26rem);
+    max-height: calc(100vh - 13rem);
   }
 }
 
 .fa-media-tree-results {
   min-width: 0;
+  min-height: 0;
   flex: 1 1 auto;
 }
 
@@ -555,6 +577,22 @@
 .fa-media-tree-node--all .fa-media-tree-name,
 .fa-media-tree-node--uncategorized .fa-media-tree-name {
   font-style: italic;
+}
+
+/* The import dropzone borrowed `.fa-media-tree-pane` outright for its card
+   look, which handed it the tree pane's width and scroll behaviour too. It has
+   its own class now — and, unlike before, a framework-neutral fallback at all:
+   `--active` was referenced by the runtime with no rule behind it (`D11`). */
+.fa-media-transfer-dropzone {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--fa-media-border);
+  border-radius: 0.5rem;
+}
+
+.fa-media-transfer-dropzone--active {
+  background: var(--fa-media-muted-bg);
 }
 
 .fa-media-tree-error {

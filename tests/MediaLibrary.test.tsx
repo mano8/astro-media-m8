@@ -667,21 +667,40 @@ describe("MediaLibrary", () => {
     click(toggleByName(view.container, "Invoices"));
     await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
 
-    // the pane collapses above the list on narrow viewports and only becomes a
-    // second column at `md`, with its own bounded, scrollable height so a deep
-    // tree cannot push the results off the bottom of the screen
+    // the pane stacks above the list on narrow viewports and only becomes a
+    // second column at `lg` — at `md` a category pane and a six-column table
+    // shared 768px and both were cramped
     const layout = view.container.querySelector<HTMLElement>(".fa-media-tree-layout");
     expect(layout?.className).toContain("flex-col");
-    expect(layout?.className).toContain("md:flex-row");
+    expect(layout?.className).toContain("lg:flex-row");
+    expect(layout?.className).not.toContain("md:flex-row");
+    // both columns stretch, which is what makes the pane share the results
+    // column's height rather than hugging its own content
+    expect(layout?.className).toContain("lg:items-stretch");
+    expect(layout?.className).not.toContain("items-start");
     const pane = view.container.querySelector<HTMLElement>(".fa-media-tree-pane");
-    expect(pane?.className).toContain("max-h-[50vh]");
-    expect(pane?.className).toContain("md:w-64");
+    expect(pane?.className).toContain("max-h-[45vh]");
+    // width scales with the viewport between a readable floor and a cap that
+    // keeps the results column dominant, instead of a flat 16rem at every size
+    expect(pane?.className).toContain("lg:w-[clamp(16rem,24vw,26rem)]");
+    expect(pane?.className).not.toContain("w-64");
+    // a stretched flex item will not shrink below its content without this, so
+    // the pane's own scroll would never engage
+    expect(pane?.className).toContain("min-h-0");
     // both axes scroll, and the list and its labels are what can outgrow the
     // pane horizontally — a truncating label could never widen it, so the
     // horizontal bar would have had nothing to reveal
     expect(pane?.className).toContain("overflow-auto");
     expect(pane?.className).not.toContain("overflow-y-auto");
     expect(view.container.querySelector('ul[role="tree"]')?.className).toContain("min-w-max");
+    // the results column scrolls its own table rather than squashing the six
+    // columns or pushing the whole page sideways; the table's `min-w` is what
+    // gives that bar something to reveal, since `width: 100%` alone cannot
+    // exceed its wrapper
+    const scroller = view.container.querySelector<HTMLElement>(".fa-media-tree-results .fa-media-table-scroll");
+    expect(scroller?.className).toContain("overflow-x-auto");
+    expect(scroller?.querySelector("table.fa-media-table")?.className).toContain("min-w-[34rem]");
+    expect(view.container.querySelector<HTMLElement>(".fa-media-tree-results")?.className).toContain("min-h-0");
     const invoicesLabel = view.container.ownerDocument.getElementById(
       (treeItemByName(view.container, "Invoices").getAttribute("aria-labelledby") ?? "").split(" ")[0] ?? ""
     );

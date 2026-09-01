@@ -68,6 +68,31 @@ folding it the correct call rather than a tidying one.
   horizontal bar would have had nothing to reveal. The bar is `auto`, so a
   shallow tree renders exactly as before. Carried in both the Tailwind token
   classes and the framework-neutral `media.css` fallback (`D11`).
+- **The tree view's two panes are the same height, and the pane is no longer a
+  fixed 16rem.** The row was `md:items-start`, so the category pane hugged its
+  own content and sat as a short box beside a long results table; it is
+  `items-stretch` at both widths now, so the pane takes the results column's
+  height and the `max-h` only bites when the tree is the taller of the two —
+  then it scrolls at the cap rather than growing the page. `min-h-0` is required
+  for that scroll to engage at all, since a stretched flex item will not shrink
+  below its content. The width moves from a flat `w-64` to
+  `clamp(16rem, 24vw, 26rem)`: 16rem was the same pane on a 13" laptop and a 27"
+  monitor and too narrow for a nested tree on both.
+- **The two-pane split waits for `lg`, not `md`.** At 48rem a category pane and
+  a six-column table shared 768px and both were cramped, so the stacked layout
+  now carries the tablet range where it reads better.
+- **The results table scrolls instead of squashing.** Six columns have no
+  readable narrow form, so the table sits in its own `overflow-x-auto` box with
+  `min-w-[34rem]` — the `min-width` is what gives the bar something to reveal,
+  since `width: 100%` alone can never exceed its wrapper. Applies to the list
+  view as well as the tree view, since both render the same table.
+- **The import dropzone stops borrowing the tree pane's class.** It reused
+  `treePaneClassName` outright for its card look, which quietly handed it the
+  pane's width and scroll behaviour too — so sizing the pane for a category tree
+  would have resized a file dropzone with it. It carries
+  `fa-media-transfer-dropzone` now, and with it a framework-neutral fallback it
+  never had: `--active` was referenced by the runtime with no rule behind it
+  (`D11`).
 - **The child indent is trimmed** — `.fa-media-tree-children` `padding-left`
   `1.25rem` → `0.75rem` and `margin-left` `0.4rem` → `0.25rem`. Each level pays
   for indent *and* a `1.25rem` toggle column, so on a four-deep tree the indent

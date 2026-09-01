@@ -169,21 +169,41 @@ const listPreviewStyle: CSSProperties = {
   objectFit: "cover",
   width: "clamp(4rem, 12vw, 8rem)"
 };
-const treeLayoutClassName = "fa-media-tree-layout flex w-full flex-col items-stretch gap-4 md:flex-row md:items-start";
-// The layout is one column on narrow viewports (`flex-col`) and only becomes
-// two panes at `md`, so the categories collapse above the list rather than
-// beside it; the pane's own height is bounded and scrollable at every width so
-// a deep tree can never push the results off the bottom of a phone screen.
+// One column on narrow viewports, two panes from `lg` up — not `md`. At `md`
+// (48rem) a category pane and a six-column table shared 768px and both were
+// cramped; the split now waits for 64rem, so the stacked layout carries the
+// tablet range where it reads better.
 //
-// `overflow-auto`, not `overflow-y-auto`: the pane's width is fixed (`md:w-64`)
-// while a nested branch's width is not, so a deep tree used to be clipped with
-// no way to reach the rest of it. The horizontal bar is `auto`, so it appears
-// only when the widest row actually exceeds the pane — a shallow tree looks
-// exactly as it did. It only has anything to scroll because the list below
-// sizes to `min-w-max` and the row labels no longer truncate.
+// `items-stretch` at both widths, where the row used to be `md:items-start`.
+// That is what makes the pane share the results column's height instead of
+// hugging its own content and leaving a short box beside a long table.
+const treeLayoutClassName =
+  "fa-media-tree-layout flex w-full flex-col items-stretch gap-4 lg:flex-row lg:items-stretch";
+// Width is `clamp(16rem, 24vw, 26rem)` rather than a flat `w-64`: 16rem was the
+// same pane on a 13" laptop and a 27" monitor, and it was too narrow for a
+// nested tree on both. It now scales with the viewport between a readable floor
+// and a cap that keeps the results column dominant.
+//
+// Height is bounded but no longer tight. Stretched by the row, it takes the
+// results column's height; the `max-h` only bites when the tree itself is the
+// taller of the two, and then the pane scrolls at the cap instead of growing
+// the page. `min-h-0` is required for that scroll to work at all — without it
+// a stretched flex item refuses to shrink below its content.
+//
+// `overflow-auto`, not `overflow-y-auto`: a nested branch is wider than the
+// pane, so a deep tree used to be clipped with no way to reach the rest of it.
+// The horizontal bar is `auto`, so it appears only when the widest row actually
+// exceeds the pane. It only has anything to scroll because the list sizes to
+// `min-w-max` and the row labels no longer truncate.
 const treePaneClassName =
-  "fa-media-tree-pane max-h-[50vh] w-full shrink-0 overflow-auto rounded-lg border border-border bg-card p-3 text-card-foreground md:max-h-[70vh] md:w-64";
-const treeResultsClassName = "fa-media-tree-results min-w-0 flex-1";
+  "fa-media-tree-pane max-h-[45vh] min-h-0 w-full shrink-0 overflow-auto rounded-lg border border-border bg-card p-3 text-card-foreground lg:max-h-[calc(100vh-13rem)] lg:w-[clamp(16rem,24vw,26rem)]";
+const treeResultsClassName = "fa-media-tree-results min-h-0 min-w-0 flex-1";
+// The import dropzone used to borrow `treePaneClassName` outright for its card
+// look, which quietly handed it the tree pane's width and scroll behaviour too
+// — so sizing the pane for a category tree would have sized a file dropzone
+// with it. It carries the shared card styling on its own class instead.
+const transferDropzoneClassName =
+  "fa-media-transfer-dropzone w-full rounded-lg border border-border bg-card p-3 text-card-foreground";
 // The row is not focusable any more — its `<li role="treeitem">` parent holds
 // the tab stop — so the focus ring is drawn here off the parent's
 // `:focus-visible`, keeping it around the row instead of around the whole
@@ -551,39 +571,45 @@ function MediaObjectTable({
   labels: MediaLibraryLabels;
 }) {
   return (
-    <table className="fa-media-table">
-      <thead>
-        <tr>
-          <th>{labels.preview}</th>
-          <th>{labels.filename}</th>
-          <th>{labels.actions}</th>
-          <th>{labels.category}</th>
-          <th>{labels.status}</th>
-          <th>{labels.size}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((object, index) => (
-          <tr key={object.id}>
-            <td>
-              <MediaObjectPreview object={object} view={view} index={index} labels={labels} />
-            </td>
-            <td>
-              <MediaObjectName object={object} objectHref={objectHref} />
-            </td>
-            <td>
-              <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={onDelete} labels={labels} />
-            </td>
-            <td>{labels.categories[object.category]}</td>
-            <td>
-              <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status, labels)}</span>
-              <ScanStatusBadge object={object} labels={labels} />
-            </td>
-            <td>{humanizeBytes(object.size_bytes)}</td>
+    // A six-column table has no readable narrow form, so it scrolls inside its
+    // own box rather than squashing its cells or forcing the whole page
+    // sideways. `min-w-[34rem]` is what gives the bar something to reveal: the
+    // table is `width: 100%`, which on its own can never exceed the wrapper.
+    <div className="fa-media-table-scroll w-full overflow-x-auto">
+      <table className="fa-media-table min-w-[34rem]">
+        <thead>
+          <tr>
+            <th>{labels.preview}</th>
+            <th>{labels.filename}</th>
+            <th>{labels.actions}</th>
+            <th>{labels.category}</th>
+            <th>{labels.status}</th>
+            <th>{labels.size}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {items.map((object, index) => (
+            <tr key={object.id}>
+              <td>
+                <MediaObjectPreview object={object} view={view} index={index} labels={labels} />
+              </td>
+              <td>
+                <MediaObjectName object={object} objectHref={objectHref} />
+              </td>
+              <td>
+                <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={onDelete} labels={labels} />
+              </td>
+              <td>{labels.categories[object.category]}</td>
+              <td>
+                <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status, labels)}</span>
+                <ScanStatusBadge object={object} labels={labels} />
+              </td>
+              <td>{humanizeBytes(object.size_bytes)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -1137,7 +1163,7 @@ function MediaTransferPanel({
           ))}
         </fieldset>
         <div
-          className={dragActive ? `${treePaneClassName} fa-media-transfer-dropzone--active` : treePaneClassName}
+          className={dragActive ? `${transferDropzoneClassName} fa-media-transfer-dropzone--active` : transferDropzoneClassName}
           onDragOver={(event) => {
             event.preventDefault();
             setDragActive(true);
