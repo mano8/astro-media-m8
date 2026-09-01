@@ -78,6 +78,15 @@ folding it the correct call rather than a tidying one.
   below its content. The width moves from a flat `w-64` to
   `clamp(16rem, 24vw, 26rem)`: 16rem was the same pane on a 13" laptop and a 27"
   monitor and too narrow for a nested tree on both.
+- **The tree pane is now complete under Tailwind alone.** The list reset and
+  the child indent were the only tree geometry with no Tailwind twin — they
+  existed solely in the scaffold stylesheet. A consumer that maps its own theme
+  instead of loading that stylesheet (which is the documented way to use this
+  package with a design system) therefore lost the indentation and the branch
+  guide line entirely, and the tree read as a flat list. Both are stated as
+  utilities on the elements now (`m-0 list-none p-0` on the tree list,
+  `ml-1 border-l border-border pl-3` on each child group), with the scaffold
+  rules kept unchanged for consumers without Tailwind.
 - **The two-pane split waits for `lg`, not `md`.** At 48rem a category pane and
   a six-column table shared 768px and both were cramped, so the stacked layout
   now carries the tablet range where it reads better.

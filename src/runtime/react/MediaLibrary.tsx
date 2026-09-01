@@ -792,7 +792,7 @@ function MediaCategoryTreeItem({
         )}
       </span>
       {hasChildren && expanded ? (
-        <ul role="group" className="fa-media-tree-children">
+        <ul role="group" className="fa-media-tree-children m-0 ml-1 list-none border-l border-border p-0 pl-3">
           {children}
         </ul>
       ) : null}
@@ -1001,7 +1001,7 @@ function MediaCategoryTreePane({
           {labels.empty}
         </p>
       ) : null}
-      <ul role="tree" aria-labelledby={headingId} className="fa-media-tree-nodes min-w-max">
+      <ul role="tree" aria-labelledby={headingId} className="fa-media-tree-nodes m-0 min-w-max list-none p-0">
         {PSEUDO_ROWS.map((row) => (
           <MediaCategoryTreeItem
             key={branchKey(row.selection)}
