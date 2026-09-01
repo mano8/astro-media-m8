@@ -420,7 +420,13 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+
+  /* `clip-path`, not the deprecated `clip`: the visually-hidden recipe
+     traditionally carries both, but `clip` has been deprecated since CSS
+     Masking and `clip-path: inset(50%)` hides the label from sight while
+     leaving it to the accessibility tree in every browser this package
+     supports. */
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
