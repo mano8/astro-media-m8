@@ -16,7 +16,7 @@ import { useCategoryTree } from "../hooks/useMediaCategories.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
 import { useMediaTransfer } from "../hooks/useMediaTransfer.js";
 import { friendlyReasonMessage } from "../errors.js";
-import { MediaUploadDropzone } from "./MediaUploadDropzone.js";
+import { MediaUploadDropzone, type MediaUploadDropzoneLabels } from "./MediaUploadDropzone.js";
 import type {
   CategoryNode,
   ExportFormat,
@@ -29,6 +29,86 @@ import type {
 } from "../schemas.js";
 
 type MediaLibraryView = "list" | "grid" | "masonry" | "tree";
+
+export interface MediaLibraryLabels {
+  title: string;
+  viewLabel: string;
+  views: Record<MediaLibraryView, string>;
+  importExport: string;
+  uploadMedia: string;
+  searchPlaceholder: string;
+  searchLabel: string;
+  preview: string;
+  filename: string;
+  actions: string;
+  category: string;
+  status: string;
+  size: string;
+  view: string;
+  delete: string;
+  deleteError: string;
+  allCategories: string;
+  categories: Record<MediaCategory, string>;
+  allStatuses: string;
+  statuses: Record<MediaObjectStatus, string>;
+  loadError: string;
+  loading: string;
+  loadMore: string;
+  previewLoading: string;
+  previewPlaceholder: string;
+  failedScan: string;
+  failedScanTitle: (status: string) => string;
+  tree: {
+    regionLabel: string;
+    title: string;
+    loadError: string;
+    loading: string;
+    empty: string;
+    allMedia: string;
+    uncategorized: string;
+    allMediaScope: string;
+    uncategorizedScope: string;
+    selectedScope: (id: number) => string;
+    expand: (name: string) => string;
+    collapse: (name: string) => string;
+    countTitle: (direct: number, total: number, name: string) => string;
+  };
+  transfer: {
+    regionLabel: string;
+    exportTitle: string;
+    importTitle: string;
+    scope: string;
+    format: string;
+    manifest: string;
+    archive: string;
+    manifestHint: string;
+    archiveHint: string;
+    startExport: string;
+    exporting: string;
+    exportError: string;
+    downloadManifest: (count: number) => string;
+    downloadArchive: (count: number) => string;
+    exportFailed: (error?: string | null) => string;
+    exportStatus: (status: string) => string;
+    chooseFile: string;
+    dropFile: string;
+    startImport: string;
+    importing: string;
+    importError: string;
+    report: (created: number, linked: number, skipped: number, failed: number) => string;
+    categoriesCreated: (count: number) => string;
+    file: string;
+    status: string;
+    reason: string;
+    importStatuses: Record<ImportObjectResult["status"], string>;
+  };
+  upload: {
+    title: string;
+    close: string;
+    closeLabel: string;
+    form: Partial<MediaUploadDropzoneLabels>;
+  };
+}
 
 /**
  * What the browse pane has selected. The two pseudo-nodes are part of the
@@ -48,24 +128,19 @@ type PreviewLoading = {
   fetchPriority: "high" | "low";
 };
 
-const STATUS_OPTIONS: ReadonlyArray<{ value: MediaObjectStatus; label: string }> = [
-  { value: "pending_upload", label: "Pending" },
-  { value: "uploaded", label: "Uploaded" },
-  { value: "processing", label: "Processing" },
-  { value: "ready", label: "Ready" },
-  { value: "failed", label: "Failed" },
-  { value: "deleted", label: "Deleted" },
-  { value: "rejected", label: "Rejected" }
+const STATUS_OPTIONS: readonly MediaObjectStatus[] = [
+  "pending_upload",
+  "uploaded",
+  "processing",
+  "ready",
+  "failed",
+  "deleted",
+  "rejected"
 ];
 const inputClassName =
   "fa-media-control h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40";
 
-const VIEW_OPTIONS: ReadonlyArray<{ value: MediaLibraryView; label: string }> = [
-  { value: "list", label: "List" },
-  { value: "grid", label: "Grid" },
-  { value: "masonry", label: "Masonry" },
-  { value: "tree", label: "Tree" }
-];
+const VIEW_OPTIONS: readonly MediaLibraryView[] = ["list", "grid", "masonry", "tree"];
 const titleRowClassName = "fa-media-title-row flex w-full flex-wrap items-center justify-between gap-3";
 const filterRowClassName = "fa-media-filter-row flex w-full flex-col gap-3 md:flex-row md:items-center";
 const viewSwitcherClassName =
@@ -130,14 +205,108 @@ const transferPanelClassName =
 const transferSectionClassName = "fa-media-transfer-section grid gap-2 content-start";
 const transferTableWrapClassName = "fa-media-transfer-table-wrap max-h-64 overflow-y-auto rounded-md border border-border";
 const transferTableClassName = "fa-media-transfer-table w-full border-collapse text-xs";
-const EXPORT_FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string; hint: string }> = [
-  { value: "manifest", label: "Manifest", hint: "Metadata only — filenames, categories, no bytes." },
-  { value: "archive", label: "Archive", hint: "Full zip with bytes; assembled asynchronously." }
-];
-const IMPORT_FORMAT_OPTIONS: ReadonlyArray<{ value: ImportFormat; label: string }> = [
-  { value: "manifest", label: "Manifest" },
-  { value: "archive", label: "Archive" }
-];
+const EXPORT_FORMAT_OPTIONS: readonly ExportFormat[] = ["manifest", "archive"];
+const IMPORT_FORMAT_OPTIONS: readonly ImportFormat[] = ["manifest", "archive"];
+
+const DEFAULT_LABELS: MediaLibraryLabels = {
+  title: "Media library",
+  viewLabel: "Media library view",
+  views: { list: "List", grid: "Grid", masonry: "Masonry", tree: "Tree" },
+  importExport: "Import / Export",
+  uploadMedia: "Upload media",
+  searchPlaceholder: "Search filename",
+  searchLabel: "Search media",
+  preview: "Preview",
+  filename: "Filename",
+  actions: "Actions",
+  category: "Category",
+  status: "Status",
+  size: "Size",
+  view: "View",
+  delete: "Delete",
+  deleteError: "Failed to delete media",
+  allCategories: "All categories",
+  categories: {
+    avatar: "Avatar",
+    document: "Document",
+    asset: "Asset",
+    chat_attachment: "Chat attachment",
+    export: "Export",
+    receipt: "Receipt"
+  },
+  allStatuses: "All statuses",
+  statuses: {
+    pending_upload: "Pending",
+    uploaded: "Uploaded",
+    processing: "Processing",
+    ready: "Ready",
+    failed: "Failed",
+    deleted: "Deleted",
+    rejected: "Rejected"
+  },
+  loadError: "Failed to load media",
+  loading: "Loading...",
+  loadMore: "Load more",
+  previewLoading: "Loading",
+  previewPlaceholder: "Preview",
+  failedScan: "Failed virus scan",
+  failedScanTitle: (status) => `Failed virus scan (${status})`,
+  tree: {
+    regionLabel: "Media categories",
+    title: "Categories",
+    loadError: "Failed to load categories",
+    loading: "Loading categories…",
+    empty: "No user categories yet. Create one from the Categories panel to browse media by branch.",
+    allMedia: "All media",
+    uncategorized: "Uncategorized",
+    allMediaScope: "All media",
+    uncategorizedScope: "Uncategorized media",
+    selectedScope: (id) => `Selected branch (category ${id})`,
+    expand: (name) => `Expand ${name}`,
+    collapse: (name) => `Collapse ${name}`,
+    countTitle: (direct, total, name) => `${direct} directly in ${name}, ${total} including sub-categories`
+  },
+  transfer: {
+    regionLabel: "Import and export media",
+    exportTitle: "Export",
+    importTitle: "Import",
+    scope: "Export scope",
+    format: "Format",
+    manifest: "Manifest",
+    archive: "Archive",
+    manifestHint: "Metadata only — filenames, categories, no bytes.",
+    archiveHint: "Full zip with bytes; assembled asynchronously.",
+    startExport: "Start export",
+    exporting: "Exporting…",
+    exportError: "Export failed",
+    downloadManifest: (count) => `Download manifest (${count} objects)`,
+    downloadArchive: (count) => `Download archive (${count} objects)`,
+    exportFailed: (error) => `Export failed${error ? `: ${error}` : "."}`,
+    exportStatus: (status) => `Export ${status}…`,
+    chooseFile: "Choose file",
+    dropFile: "Drop a file here, or choose one above.",
+    startImport: "Start import",
+    importing: "Importing…",
+    importError: "Import failed",
+    report: (created, linked, skipped, failed) => `${created} created, ${linked} linked, ${skipped} skipped, ${failed} failed`,
+    categoriesCreated: (count) => `${count} categories created`,
+    file: "File",
+    status: "Status",
+    reason: "Reason",
+    importStatuses: {
+      created: "Created",
+      linked: "Linked",
+      skipped: "Skipped",
+      failed: "Failed"
+    }
+  },
+  upload: {
+    title: "Upload media",
+    close: "Close",
+    closeLabel: "Close upload dialog",
+    form: {}
+  }
+};
 
 function isImage(object: MediaObjectPublic): boolean {
   return object.mime_type.toLowerCase().startsWith("image/");
@@ -165,14 +334,14 @@ function branchListParams(selection: CategoryBranchSelection): Pick<
 }
 
 /** A concise, visible description of the branch whose filters will be exported. */
-function exportBranchLabel(selection: CategoryBranchSelection): string {
+function exportBranchLabel(selection: CategoryBranchSelection, labels: MediaLibraryLabels["tree"]): string {
   switch (selection.kind) {
     case "all":
-      return "All media";
+      return labels.allMediaScope;
     case "uncategorized":
-      return "Uncategorized media";
+      return labels.uncategorizedScope;
     case "category":
-      return `Selected branch (category ${selection.id})`;
+      return labels.selectedScope(selection.id);
   }
 }
 
@@ -226,8 +395,8 @@ function humanizeBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units.at(unitIndex) ?? "TB"}`;
 }
 
-function statusLabel(status: MediaObjectStatus): string {
-  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+function statusLabel(status: MediaObjectStatus, labels: MediaLibraryLabels): string {
+  return labels.statuses[status] ?? status;
 }
 
 const FAILED_SCAN_STATUSES = new Set(["infected", "quarantined"]);
@@ -238,14 +407,14 @@ const FAILED_SCAN_STATUSES = new Set(["infected", "quarantined"]);
  * up), so this is a second badge beside the existing status one, not an edit
  * to `STATUS_OPTIONS`/`statusLabel`.
  */
-function ScanStatusBadge({ object }: { object: MediaObjectPublic }) {
+function ScanStatusBadge({ object, labels }: { object: MediaObjectPublic; labels: MediaLibraryLabels }) {
   if (!FAILED_SCAN_STATUSES.has(object.scan_status)) return null;
   return (
     <span
       className="fa-media-badge fa-media-badge--scan-failed"
-      title={`Failed virus scan (${object.scan_status})`}
+      title={labels.failedScanTitle(object.scan_status)}
     >
-      Failed virus scan
+      {labels.failedScan}
     </span>
   );
 }
@@ -253,11 +422,13 @@ function ScanStatusBadge({ object }: { object: MediaObjectPublic }) {
 function MediaObjectPreview({
   object,
   view,
-  index
+  index,
+  labels
 }: {
   object: MediaObjectPublic;
   view: MediaLibraryView;
   index: number;
+  labels: MediaLibraryLabels;
 }) {
   const { data, loading, error, request } = useDownloadUrl(isImage(object) ? object.id : null);
   const loadingMode = previewLoadingFor(view, index);
@@ -284,9 +455,9 @@ function MediaObjectPreview({
       <span
         className={`${previewPlaceholderClassName} fa-media-preview--loading`}
         style={isListLayout(view) ? listPreviewStyle : undefined}
-        aria-label={`${objectLabel(object)} preview loading`}
+        aria-label={`${objectLabel(object)} ${labels.previewLoading}`}
       >
-        {loading ? "Loading" : "Preview"}
+        {loading ? labels.previewLoading : labels.previewPlaceholder}
       </span>
     );
   }
@@ -311,12 +482,12 @@ function MediaObjectName({ object, objectHref }: { object: MediaObjectPublic; ob
   return objectHref ? <a href={objectHref(object.id)}>{label}</a> : label;
 }
 
-function MediaObjectMeta({ object }: { object: MediaObjectPublic }) {
+function MediaObjectMeta({ object, labels }: { object: MediaObjectPublic; labels: MediaLibraryLabels }) {
   return (
     <>
-      <span>{object.category}</span>
-      <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
-      <ScanStatusBadge object={object} />
+      <span>{labels.categories[object.category]}</span>
+      <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status, labels)}</span>
+      <ScanStatusBadge object={object} labels={labels} />
       <span>{humanizeBytes(object.size_bytes)}</span>
     </>
   );
@@ -326,12 +497,14 @@ function MediaObjectActions({
   object,
   objectHref,
   deletingId,
-  onDelete
+  onDelete,
+  labels
 }: {
   object: MediaObjectPublic;
   objectHref?: (id: string) => string;
   deletingId: string | null;
   onDelete: (object: MediaObjectPublic) => Promise<void>;
+  labels: MediaLibraryLabels;
 }) {
   const label = objectLabel(object);
   const href = objectHref?.(object.id);
@@ -339,12 +512,12 @@ function MediaObjectActions({
   return (
     <div className={itemActionsClassName}>
       {href ? (
-        <a className={actionLinkClassName} href={href} aria-label={`View ${label}`}>
-          View
+        <a className={actionLinkClassName} href={href} aria-label={`${labels.view} ${label}`}>
+          {labels.view}
         </a>
       ) : null}
       <button type="button" className="fa-media-danger" disabled={deletingId === object.id} onClick={() => void onDelete(object)}>
-        Delete
+        {labels.delete}
       </button>
     </div>
   );
@@ -360,42 +533,44 @@ function MediaObjectTable({
   view,
   objectHref,
   deletingId,
-  onDelete
+  onDelete,
+  labels
 }: {
   items: readonly MediaObjectPublic[];
   view: MediaLibraryView;
   objectHref?: (id: string) => string;
   deletingId: string | null;
   onDelete: (object: MediaObjectPublic) => Promise<void>;
+  labels: MediaLibraryLabels;
 }) {
   return (
     <table className="fa-media-table">
       <thead>
         <tr>
-          <th>Preview</th>
-          <th>Filename</th>
-          <th>Actions</th>
-          <th>Category</th>
-          <th>Status</th>
-          <th>Size</th>
+          <th>{labels.preview}</th>
+          <th>{labels.filename}</th>
+          <th>{labels.actions}</th>
+          <th>{labels.category}</th>
+          <th>{labels.status}</th>
+          <th>{labels.size}</th>
         </tr>
       </thead>
       <tbody>
         {items.map((object, index) => (
           <tr key={object.id}>
             <td>
-              <MediaObjectPreview object={object} view={view} index={index} />
+              <MediaObjectPreview object={object} view={view} index={index} labels={labels} />
             </td>
             <td>
               <MediaObjectName object={object} objectHref={objectHref} />
             </td>
             <td>
-              <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={onDelete} />
+              <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={onDelete} labels={labels} />
             </td>
-            <td>{object.category}</td>
+            <td>{labels.categories[object.category]}</td>
             <td>
-              <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
-              <ScanStatusBadge object={object} />
+              <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status, labels)}</span>
+              <ScanStatusBadge object={object} labels={labels} />
             </td>
             <td>{humanizeBytes(object.size_bytes)}</td>
           </tr>
@@ -420,9 +595,9 @@ function branchKey(selection: CategoryBranchSelection): string {
  * server node counts are per-category, and inventing a total here would be a
  * second, unverifiable source for a number the tree already owns.
  */
-const PSEUDO_ROWS: ReadonlyArray<{ selection: CategoryBranchSelection; label: string }> = [
-  { selection: { kind: "all" }, label: "All media" },
-  { selection: { kind: "uncategorized" }, label: "Uncategorized" }
+const PSEUDO_ROWS: ReadonlyArray<{ selection: CategoryBranchSelection }> = [
+  { selection: { kind: "all" } },
+  { selection: { kind: "uncategorized" } }
 ];
 
 /**
@@ -484,6 +659,7 @@ function flattenPaneRows(tree: readonly CategoryNode[], collapsed: ReadonlySet<n
  */
 interface TreePaneController {
   baseId: string;
+  labels: MediaLibraryLabels["tree"];
   selection: CategoryBranchSelection;
   activeKey: string | null;
   collapsed: ReadonlySet<number>;
@@ -562,7 +738,7 @@ function MediaCategoryTreeItem({
           <span
             className={treeToggleClassName}
             aria-hidden="true"
-            title={`${expanded ? "Collapse" : "Expand"} ${label}`}
+            title={expanded ? controller.labels.collapse(label) : controller.labels.expand(label)}
             onClick={(event) => {
               event.stopPropagation();
               controller.toggle(categoryId);
@@ -618,7 +794,7 @@ function MediaCategoryBranch({
       label={node.name}
       level={depth}
       count={node.total_object_count}
-      countTitle={`${node.object_count} directly in ${node.name}, ${node.total_object_count} including sub-categories`}
+      countTitle={controller.labels.countTitle(node.object_count, node.total_object_count, node.name)}
       hasChildren={hasChildren}
       expanded={expanded}
     >
@@ -647,10 +823,12 @@ function MediaCategoryBranch({
  */
 function MediaCategoryTreePane({
   selection,
-  onSelect
+  onSelect,
+  labels
 }: {
   selection: CategoryBranchSelection;
   onSelect: (selection: CategoryBranchSelection) => void;
+  labels: MediaLibraryLabels["tree"];
 }) {
   const { tree, loading, error } = useCategoryTree();
   const baseId = useId();
@@ -750,6 +928,7 @@ function MediaCategoryTreePane({
 
   const controller: TreePaneController = {
     baseId,
+    labels,
     selection,
     activeKey,
     collapsed,
@@ -774,17 +953,17 @@ function MediaCategoryTreePane({
   };
 
   return (
-    <aside className={treePaneClassName} aria-label="Media categories">
-      <h3 id={headingId}>Categories</h3>
+    <aside className={treePaneClassName} aria-label={labels.regionLabel}>
+      <h3 id={headingId}>{labels.title}</h3>
       {error ? (
         <p role="alert" className="fa-media-tree-error">
-          Failed to load categories
+          {labels.loadError}
         </p>
       ) : null}
-      {loading && tree.length === 0 ? <p className="fa-media-category-hint">Loading categories…</p> : null}
+      {loading && tree.length === 0 ? <p className="fa-media-category-hint">{labels.loading}</p> : null}
       {!loading && !error && tree.length === 0 ? (
         <p className="fa-media-category-hint">
-          No user categories yet. Create one from the Categories panel to browse media by branch.
+          {labels.empty}
         </p>
       ) : null}
       <ul role="tree" aria-labelledby={headingId} className="fa-media-tree-nodes">
@@ -793,7 +972,7 @@ function MediaCategoryTreePane({
             key={branchKey(row.selection)}
             controller={controller}
             selection={row.selection}
-            label={row.label}
+            label={row.selection.kind === "all" ? labels.allMedia : labels.uncategorized}
             level={1}
             hasChildren={false}
             expanded={false}
@@ -808,12 +987,18 @@ function MediaCategoryTreePane({
 }
 
 /** One row of the per-import result table. */
-function ImportResultRow({ result }: { result: ImportObjectResult }) {
+function ImportResultRow({
+  result,
+  labels
+}: {
+  result: ImportObjectResult;
+  labels: MediaLibraryLabels["transfer"];
+}) {
   const message = result.reason ? friendlyReasonMessage({ reason: result.reason }, result.message ?? result.reason) : result.message;
   return (
     <tr>
       <td>{result.filename ?? result.source_id}</td>
-      <td>{result.status}</td>
+      <td>{labels.importStatuses[result.status]}</td>
       <td>{message ?? "—"}</td>
     </tr>
   );
@@ -830,10 +1015,12 @@ function ImportResultRow({ result }: { result: ImportObjectResult }) {
  */
 function MediaTransferPanel({
   filters,
-  exportScopeLabel
+  exportScopeLabel,
+  labels
 }: {
   filters: ObjectListParams;
   exportScopeLabel?: string;
+  labels: MediaLibraryLabels["transfer"];
 }) {
   const transfer = useMediaTransfer();
   const [exportFormat, setExportFormat] = useState<ExportFormat>("manifest");
@@ -871,23 +1058,23 @@ function MediaTransferPanel({
   const report = transfer.importReport;
 
   return (
-    <div className={transferPanelClassName} role="region" aria-label="Import and export media">
-      <section className={transferSectionClassName} aria-label="Export">
-        <h3>Export</h3>
-        {exportScopeLabel ? <p className="fa-media-transfer-hint">Export scope: {exportScopeLabel}</p> : null}
+    <div className={transferPanelClassName} role="region" aria-label={labels.regionLabel}>
+      <section className={transferSectionClassName} aria-label={labels.exportTitle}>
+        <h3>{labels.exportTitle}</h3>
+        {exportScopeLabel ? <p className="fa-media-transfer-hint">{labels.scope}: {exportScopeLabel}</p> : null}
         <fieldset>
-          <legend>Format</legend>
-          {EXPORT_FORMAT_OPTIONS.map((option) => (
-            <label key={option.value} className={labelInlineClassName}>
+          <legend>{labels.format}</legend>
+          {EXPORT_FORMAT_OPTIONS.map((value) => (
+            <label key={value} className={labelInlineClassName}>
               <input
                 type="radio"
                 name="fa-media-export-format"
-                value={option.value}
-                checked={exportFormat === option.value}
-                onChange={() => setExportFormat(option.value)}
+                value={value}
+                checked={exportFormat === value}
+                onChange={() => setExportFormat(value)}
               />
-              {option.label}
-              <span className="fa-media-transfer-hint">{option.hint}</span>
+              {value === "manifest" ? labels.manifest : labels.archive}
+              <span className="fa-media-transfer-hint">{value === "manifest" ? labels.manifestHint : labels.archiveHint}</span>
             </label>
           ))}
         </fieldset>
@@ -897,46 +1084,46 @@ function MediaTransferPanel({
           disabled={transfer.exportPending}
           onClick={() => void handleStartExport()}
         >
-          {transfer.exportPending ? "Exporting…" : "Start export"}
+          {transfer.exportPending ? labels.exporting : labels.startExport}
         </button>
         {transfer.exportError ? (
           <p role="alert">
-            {transfer.exportError instanceof Error ? transfer.exportError.message : "Export failed"}
+            {transfer.exportError instanceof Error ? transfer.exportError.message : labels.exportError}
           </p>
         ) : null}
         {transfer.exportFormat === "manifest" && transfer.manifest ? (
           <button type="button" className={buttonClassName} onClick={() => transfer.downloadManifest()}>
-            Download manifest ({transfer.manifest.objects.length} objects)
+            {labels.downloadManifest(transfer.manifest.objects.length)}
           </button>
         ) : null}
         {transfer.exportFormat === "archive" && transfer.exportJob ? (
           <p role="status">
             {transfer.exportJob.status === "completed" && transfer.exportJob.download_url ? (
               <a className={actionLinkClassName} href={transfer.exportJob.download_url} download>
-                Download archive ({transfer.exportJob.object_count} objects)
+                {labels.downloadArchive(transfer.exportJob.object_count)}
               </a>
             ) : transfer.exportJob.status === "failed" ? (
-              `Export failed${transfer.exportJob.error ? `: ${transfer.exportJob.error}` : "."}`
+              labels.exportFailed(transfer.exportJob.error)
             ) : (
-              `Export ${transfer.exportJob.status}…`
+              labels.exportStatus(transfer.exportJob.status)
             )}
           </p>
         ) : null}
       </section>
-      <section className={transferSectionClassName} aria-label="Import">
-        <h3>Import</h3>
+      <section className={transferSectionClassName} aria-label={labels.importTitle}>
+        <h3>{labels.importTitle}</h3>
         <fieldset>
-          <legend>Format</legend>
-          {IMPORT_FORMAT_OPTIONS.map((option) => (
-            <label key={option.value} className={labelInlineClassName}>
+          <legend>{labels.format}</legend>
+          {IMPORT_FORMAT_OPTIONS.map((value) => (
+            <label key={value} className={labelInlineClassName}>
               <input
                 type="radio"
                 name="fa-media-import-format"
-                value={option.value}
-                checked={importFormat === option.value}
-                onChange={() => setImportFormat(option.value)}
+                value={value}
+                checked={importFormat === value}
+                onChange={() => setImportFormat(value)}
               />
-              {option.label}
+              {value === "manifest" ? labels.manifest : labels.archive}
             </label>
           ))}
         </fieldset>
@@ -949,13 +1136,15 @@ function MediaTransferPanel({
           onDragLeave={() => setDragActive(false)}
           onDrop={onDrop}
         >
+          <label className={buttonClassName} htmlFor="fa-media-import-file">{labels.chooseFile}</label>
           <input
-            className={inputClassName}
+            id="fa-media-import-file"
+            className="sr-only"
             type="file"
             accept={importFormat === "archive" ? ".zip" : ".json"}
             onChange={(event) => setImportFile(event.currentTarget.files?.[0] ?? null)}
           />
-          {importFile ? <p>{importFile.name}</p> : <p>Drop a file here, or choose one above.</p>}
+          {importFile ? <p>{importFile.name}</p> : <p>{labels.dropFile}</p>}
         </div>
         <button
           type="button"
@@ -963,31 +1152,31 @@ function MediaTransferPanel({
           disabled={!importFile || transfer.importPending}
           onClick={() => void handleStartImport()}
         >
-          {transfer.importPending ? "Importing…" : "Start import"}
+          {transfer.importPending ? labels.importing : labels.startImport}
         </button>
         {transfer.importError ? (
           <p role="alert">
-            {transfer.importError instanceof Error ? transfer.importError.message : "Import failed"}
+            {transfer.importError instanceof Error ? transfer.importError.message : labels.importError}
           </p>
         ) : null}
         {report ? (
           <div>
             <p role="status">
-              {report.created} created, {report.linked} linked, {report.skipped} skipped, {report.failed} failed
-              {report.categories_created ? `; ${report.categories_created} categories created` : ""}
+              {labels.report(report.created, report.linked, report.skipped, report.failed)}
+              {report.categories_created ? `; ${labels.categoriesCreated(report.categories_created)}` : ""}
             </p>
             <div className={transferTableWrapClassName}>
               <table className={transferTableClassName}>
                 <thead>
                   <tr>
-                    <th>File</th>
-                    <th>Status</th>
-                    <th>Reason</th>
+                    <th>{labels.file}</th>
+                    <th>{labels.status}</th>
+                    <th>{labels.reason}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {report.objects.map((result) => (
-                    <ImportResultRow key={result.source_id} result={result} />
+                    <ImportResultRow key={result.source_id} result={result} labels={labels} />
                   ))}
                 </tbody>
               </table>
@@ -1002,13 +1191,41 @@ function MediaTransferPanel({
 export function MediaLibrary({
   objectHref,
   initial = {},
-  initialUploadOpen = false
+  initialUploadOpen = false,
+  labels: labelOverrides
 }: {
   objectHref?: (id: string) => string;
   initial?: ObjectListParams;
   /** Open the library's upload dialog on first render (legacy upload routes). */
   initialUploadOpen?: boolean;
+  labels?: Partial<Omit<MediaLibraryLabels, "views" | "categories" | "statuses" | "tree" | "transfer" | "upload">> & {
+    views?: Partial<MediaLibraryLabels["views"]>;
+    categories?: Partial<MediaLibraryLabels["categories"]>;
+    statuses?: Partial<MediaLibraryLabels["statuses"]>;
+    tree?: Partial<MediaLibraryLabels["tree"]>;
+    transfer?: Partial<MediaLibraryLabels["transfer"]>;
+    upload?: Partial<Omit<MediaLibraryLabels["upload"], "form">> & {
+      form?: Partial<MediaUploadDropzoneLabels>;
+    };
+  };
 }) {
+  const labels: MediaLibraryLabels = useMemo(
+    () => ({
+      ...DEFAULT_LABELS,
+      ...labelOverrides,
+      views: { ...DEFAULT_LABELS.views, ...labelOverrides?.views },
+      categories: { ...DEFAULT_LABELS.categories, ...labelOverrides?.categories },
+      statuses: { ...DEFAULT_LABELS.statuses, ...labelOverrides?.statuses },
+      tree: { ...DEFAULT_LABELS.tree, ...labelOverrides?.tree },
+      transfer: { ...DEFAULT_LABELS.transfer, ...labelOverrides?.transfer },
+      upload: {
+        ...DEFAULT_LABELS.upload,
+        ...labelOverrides?.upload,
+        form: { ...DEFAULT_LABELS.upload.form, ...labelOverrides?.upload?.form }
+      }
+    }),
+    [labelOverrides]
+  );
   const [query, setQuery] = useState<ObjectListParams>(initial);
   const [view, setView] = useState<MediaLibraryView>("list");
   // Which branch the tree pane has selected. It is kept beside `query` rather
@@ -1058,7 +1275,7 @@ export function MediaLibrary({
       await deleteObject(object.id);
       await refresh();
     } catch {
-      setActionError("Failed to delete media");
+      setActionError(labels.deleteError);
     } finally {
       setDeletingId(null);
     }
@@ -1068,10 +1285,10 @@ export function MediaLibrary({
     <section className="not-content fa-media-panel">
       <header className="fa-media-toolbar">
         <div className={titleRowClassName}>
-          <h2>Media library ({count})</h2>
+          <h2>{labels.title} ({count})</h2>
           <div className={toolbarActionsClassName}>
-            <div className={viewSwitcherClassName} aria-label="Media library view">
-              {VIEW_OPTIONS.map(({ value, label }) => (
+            <div className={viewSwitcherClassName} aria-label={labels.viewLabel}>
+              {VIEW_OPTIONS.map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -1080,7 +1297,7 @@ export function MediaLibrary({
                   style={view === value ? activeViewButtonStyle : undefined}
                   onClick={() => setView(value)}
                 >
-                  {label}
+                  {labels.views[value]}
                 </button>
               ))}
             </div>
@@ -1092,10 +1309,10 @@ export function MediaLibrary({
               aria-controls="fa-media-transfer-panel"
               onClick={() => setTransferOpen((open) => !open)}
             >
-              Import / Export
+              {labels.importExport}
             </button>
             <button type="button" className={buttonClassName} onClick={() => setUploadOpen(true)}>
-              Upload media
+              {labels.uploadMedia}
             </button>
           </div>
         </div>
@@ -1103,7 +1320,8 @@ export function MediaLibrary({
           <input
             className={inputClassName}
             type="search"
-            placeholder="Search filename"
+            aria-label={labels.searchLabel}
+            placeholder={labels.searchPlaceholder}
             onChange={(event) => {
               const q = event.currentTarget.value || undefined;
               setQuery((prev) => ({ ...prev, q }));
@@ -1116,10 +1334,10 @@ export function MediaLibrary({
               setQuery((prev) => ({ ...prev, category }));
             }}
           >
-            <option value="">All categories</option>
+            <option value="">{labels.allCategories}</option>
             {(["avatar", "document", "asset", "chat_attachment", "export", "receipt"] as MediaCategory[]).map((value) => (
               <option key={value} value={value}>
-                {value}
+                {labels.categories[value]}
               </option>
             ))}
           </select>
@@ -1130,10 +1348,10 @@ export function MediaLibrary({
               setQuery((prev) => ({ ...prev, status }));
             }}
           >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map(({ value, label }) => (
+            <option value="">{labels.allStatuses}</option>
+            {STATUS_OPTIONS.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {labels.statuses[value]}
               </option>
             ))}
           </select>
@@ -1141,7 +1359,11 @@ export function MediaLibrary({
       </header>
       {transferOpen ? (
         <div id="fa-media-transfer-panel">
-          <MediaTransferPanel filters={query} exportScopeLabel={view === "tree" ? exportBranchLabel(branchSelection) : undefined} />
+          <MediaTransferPanel
+            filters={query}
+            exportScopeLabel={view === "tree" ? exportBranchLabel(branchSelection, labels.tree) : undefined}
+            labels={labels.transfer}
+          />
         </div>
       ) : null}
       {uploadOpen ? (
@@ -1158,13 +1380,14 @@ export function MediaLibrary({
             aria-labelledby="fa-media-upload-dialog-title"
           >
             <header className="fa-media-dialog-header">
-              <h2 id="fa-media-upload-dialog-title">Upload media</h2>
-              <button ref={uploadCloseRef} type="button" aria-label="Close upload dialog" onClick={() => setUploadOpen(false)}>
-                Close
+              <h2 id="fa-media-upload-dialog-title">{labels.upload.title}</h2>
+              <button ref={uploadCloseRef} type="button" aria-label={labels.upload.closeLabel} onClick={() => setUploadOpen(false)}>
+                {labels.upload.close}
               </button>
             </header>
             <MediaUploadDropzone
               heading={false}
+              labels={labels.upload.form}
               onUploaded={() => {
                 setUploadOpen(false);
                 void refresh();
@@ -1173,11 +1396,11 @@ export function MediaLibrary({
           </div>
         </div>
       ) : null}
-      {error ? <p role="alert">Failed to load media</p> : null}
+      {error ? <p role="alert">{labels.loadError}</p> : null}
       {actionError ? <p role="alert">{actionError}</p> : null}
       {view === "tree" ? (
         <div className={treeLayoutClassName}>
-          <MediaCategoryTreePane selection={branchSelection} onSelect={handleBranchSelect} />
+          <MediaCategoryTreePane selection={branchSelection} onSelect={handleBranchSelect} labels={labels.tree} />
           <div className={treeResultsClassName}>
             <MediaObjectTable
               items={items}
@@ -1185,6 +1408,7 @@ export function MediaLibrary({
               objectHref={objectHref}
               deletingId={deletingId}
               onDelete={handleDelete}
+              labels={labels}
             />
           </div>
         </div>
@@ -1195,29 +1419,30 @@ export function MediaLibrary({
           objectHref={objectHref}
           deletingId={deletingId}
           onDelete={handleDelete}
+          labels={labels}
         />
       ) : (
         <div className={view === "grid" ? gridClassName : masonryClassName}>
           {items.map((object, index) => (
             <article className={cardClassName} key={object.id}>
-              <MediaObjectPreview object={object} view={view} index={index} />
+              <MediaObjectPreview object={object} view={view} index={index} labels={labels} />
               <div className={cardBodyClassName}>
                 <h3 className={cardTitleClassName}>
                   <MediaObjectName object={object} objectHref={objectHref} />
                 </h3>
                 <div className={cardMetaClassName}>
-                  <MediaObjectMeta object={object} />
+                  <MediaObjectMeta object={object} labels={labels} />
                 </div>
-                <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} />
+                <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} labels={labels} />
               </div>
             </article>
           ))}
         </div>
       )}
-      {loading ? <p>Loading...</p> : null}
+      {loading ? <p>{labels.loading}</p> : null}
       {hasMore ? (
         <button type="button" disabled={loading} onClick={() => void loadMore()}>
-          Load more
+          {labels.loadMore}
         </button>
       ) : null}
     </section>

@@ -61,6 +61,35 @@ type BranchProps = {
   disabled: boolean;
   onToggleSelected: (id: number) => void;
   onToggleCollapsed: (id: number) => void;
+  labels: CategoryMultiSelectLabels;
+};
+
+export interface CategoryMultiSelectLabels {
+  legend: string;
+  emptyHint: string;
+  expand: (name: string) => string;
+  collapse: (name: string) => string;
+  descendantSelected: string;
+  loadError: string;
+  loading: string;
+  selected: string;
+  remove: (path: string) => string;
+  clearAll: string;
+  noneSelected: string;
+}
+
+const DEFAULT_LABELS: CategoryMultiSelectLabels = {
+  legend: "User categories (optional)",
+  emptyHint: "No user categories yet. Create one from the category manager to file media here.",
+  expand: (name) => `Expand ${name}`,
+  collapse: (name) => `Collapse ${name}`,
+  descendantSelected: "A category below this one is selected",
+  loadError: "Failed to load categories",
+  loading: "Loading categories…",
+  selected: "Selected categories",
+  remove: (path) => `Remove ${path}`,
+  clearAll: "Clear all",
+  noneSelected: "No user categories selected."
 };
 
 /**
@@ -89,7 +118,8 @@ function CategoryBranch({
   collapsed,
   disabled,
   onToggleSelected,
-  onToggleCollapsed
+  onToggleCollapsed,
+  labels
 }: BranchProps) {
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(node.id);
@@ -106,7 +136,7 @@ function CategoryBranch({
             className="fa-media-category-toggle"
             aria-expanded={!isCollapsed}
             aria-controls={groupId}
-            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${node.name}`}
+            aria-label={isCollapsed ? labels.expand(node.name) : labels.collapse(node.name)}
             onClick={() => onToggleCollapsed(node.id)}
           >
             {isCollapsed ? "▸" : "▾"}
@@ -124,7 +154,7 @@ function CategoryBranch({
           />
           <span className="fa-media-category-name">{node.name}</span>
           {descendantSelected ? (
-            <span className="fa-media-category-marker" title="A category below this one is selected">
+            <span className="fa-media-category-marker" title={labels.descendantSelected}>
               {"•"}
             </span>
           ) : null}
@@ -144,6 +174,7 @@ function CategoryBranch({
               disabled={disabled}
               onToggleSelected={onToggleSelected}
               onToggleCollapsed={onToggleCollapsed}
+              labels={labels}
             />
           ))}
         </ul>
@@ -172,6 +203,7 @@ export type CategoryMultiSelectViewProps = {
   fallbackLabels?: ReadonlyMap<number, string>;
   /** Prefix for the generated element ids; must be unique per mounted picker. */
   idPrefix?: string;
+  labels?: Partial<CategoryMultiSelectLabels>;
 };
 
 /**
@@ -186,11 +218,13 @@ export function CategoryMultiSelectView({
   loading = false,
   error = null,
   disabled = false,
-  legend = "User categories (optional)",
-  emptyHint = "No user categories yet. Create one from the category manager to file media here.",
+  legend,
+  emptyHint,
   fallbackLabels,
-  idPrefix = "fa-media-categories"
+  idPrefix = "fa-media-categories",
+  labels: labelOverrides
 }: CategoryMultiSelectViewProps) {
+  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
   const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(() => new Set<number>());
   const selected = useMemo(() => new Set(value), [value]);
   const paths = useMemo(() => collectCategoryPaths(tree), [tree]);
@@ -219,12 +253,12 @@ export function CategoryMultiSelectView({
 
   const errorMessage = error
     ? (error instanceof ApiError ? messageFromDetail(error.detail) : null) ??
-      (error instanceof Error ? error.message : "Failed to load categories")
+      (error instanceof Error ? error.message : labels.loadError)
     : null;
 
   return (
     <fieldset className="fa-media-category-picker">
-      <legend>{legend}</legend>
+      <legend>{legend ?? labels.legend}</legend>
 
       {errorMessage ? (
         <p role="alert" className="fa-media-category-error">
@@ -233,11 +267,11 @@ export function CategoryMultiSelectView({
       ) : null}
 
       {loading && tree.length === 0 ? (
-        <p className="fa-media-category-hint">Loading categories…</p>
+        <p className="fa-media-category-hint">{labels.loading}</p>
       ) : null}
 
       {!loading && !errorMessage && tree.length === 0 ? (
-        <p className="fa-media-category-hint">{emptyHint}</p>
+        <p className="fa-media-category-hint">{emptyHint ?? labels.emptyHint}</p>
       ) : null}
 
       {tree.length > 0 ? (
@@ -253,6 +287,7 @@ export function CategoryMultiSelectView({
               disabled={disabled}
               onToggleSelected={toggleSelected}
               onToggleCollapsed={toggleCollapsed}
+              labels={labels}
             />
           ))}
         </ul>
@@ -261,14 +296,14 @@ export function CategoryMultiSelectView({
       <div className="fa-media-category-selection">
         {chips.length ? (
           <>
-            <ul className="fa-media-category-chips" aria-label="Selected categories">
+            <ul className="fa-media-category-chips" aria-label={labels.selected}>
               {chips.map((chip) => (
                 <li key={chip.id} className="fa-media-badge fa-media-category-chip">
                   <span>{chip.path}</span>
                   <button
                     type="button"
                     className="fa-media-category-chip-remove"
-                    aria-label={`Remove ${chip.path}`}
+                    aria-label={labels.remove(chip.path)}
                     disabled={disabled}
                     onClick={() => toggleSelected(chip.id)}
                   >
@@ -283,11 +318,11 @@ export function CategoryMultiSelectView({
               disabled={disabled}
               onClick={() => onChange([])}
             >
-              Clear all
+              {labels.clearAll}
             </button>
           </>
         ) : (
-          <p className="fa-media-category-hint">No user categories selected.</p>
+          <p className="fa-media-category-hint">{labels.noneSelected}</p>
         )}
       </div>
     </fieldset>

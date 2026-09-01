@@ -338,6 +338,34 @@ describe("CategoryMultiSelectView", () => {
     );
     errorView.unmount();
   });
+
+  it("localizes picker controls, empty copy, and selected chips", () => {
+    const onChange = vi.fn();
+    const view = render(
+      <CategoryMultiSelectView
+        value={[4]}
+        onChange={onChange}
+        tree={sampleTree()}
+        labels={{
+          legend: "Categorías de usuario",
+          collapse: (name) => `Contraer ${name}`,
+          expand: (name) => `Expandir ${name}`,
+          selected: "Categorías seleccionadas",
+          remove: (path) => `Quitar ${path}`,
+          clearAll: "Borrar todo",
+          noneSelected: "Ninguna categoría seleccionada."
+        }}
+      />
+    );
+
+    expect(view.container.querySelector("legend")?.textContent).toBe("Categorías de usuario");
+    expect(view.container.querySelector('[aria-label="Contraer Invoices"]')).not.toBeNull();
+    click(view.container.querySelector('[aria-label="Quitar Contracts"]'));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+    click(buttonWithText(view.container, "Borrar todo"));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+    view.unmount();
+  });
 });
 
 describe("MediaUploadDropzone user categories", () => {
@@ -393,6 +421,31 @@ describe("MediaUploadDropzone user categories", () => {
     await waitFor(() => expect(view.container.querySelector('input[type="file"]')).toBeTruthy());
     expect(view.container.querySelector("h2")).toBeNull();
     expect(view.container.querySelector(".fa-media-category-picker")).not.toBeNull();
+    view.unmount();
+  });
+
+  it("localizes every static upload form control", async () => {
+    const view = render(withClient(
+      <MediaUploadDropzone labels={{
+        heading: "Subir archivo",
+        category: "Tipo de medio",
+        visibility: "Visibilidad",
+        categories: { asset: "Recurso" },
+        visibilities: { private: "Privado" },
+        chooseFile: "Elegir archivo",
+        cancel: "Cancelar",
+        categoryPicker: { legend: "Categorías de usuario" }
+      }} />
+    ));
+    await waitFor(() => expect(view.container.querySelector('input[type="file"]')).toBeTruthy());
+
+    expect(view.container.querySelector("h2")?.textContent).toBe("Subir archivo");
+    expect(view.container.querySelector('label[for="fa-media-upload-category"]')?.textContent).toBe("Tipo de medio");
+    expect(view.container.querySelector('option[value="asset"]')?.textContent).toBe("Recurso");
+    expect(view.container.querySelector('label[for="fa-media-upload-visibility"]')?.textContent).toBe("Visibilidad");
+    expect(view.container.querySelector('option[value="private"]')?.textContent).toBe("Privado");
+    expect(view.container.querySelector("legend")?.textContent).toBe("Categorías de usuario");
+    expect(view.container.textContent).toContain("Elegir archivo");
     view.unmount();
   });
 });

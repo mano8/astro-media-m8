@@ -53,10 +53,16 @@ vi.mock("../src/runtime/api/transfer.js", () => ({
 }));
 
 vi.mock("../src/runtime/react/MediaUploadDropzone.js", () => ({
-  MediaUploadDropzone: ({ onUploaded }: { onUploaded?: (object: MediaObjectPublic) => void }) => (
+  MediaUploadDropzone: ({
+    onUploaded,
+    labels
+  }: {
+    onUploaded?: (object: MediaObjectPublic) => void;
+    labels?: { category?: string; visibility?: string };
+  }) => (
     <section data-testid="upload-form">
-      <fieldset aria-label="User categories">
-        <legend>User categories</legend>
+      <fieldset aria-label={labels?.category ?? "User categories"}>
+        <legend>{labels?.category ?? "User categories"}</legend>
         <label>
           <input type="checkbox" /> Invoices
         </label>
@@ -973,6 +979,95 @@ describe("MediaLibrary", () => {
     await waitFor(() => {
       expect(apiMocks.listObjects.mock.calls.length).toBeGreaterThan(1);
     });
+
+    view.unmount();
+  });
+
+  it("applies translated labels to the library, tree, transfer panel, import statuses, and upload form", async () => {
+    apiMocks.listObjects.mockResolvedValue(page([]));
+    apiMocks.getCategoryTree.mockResolvedValue({ data: [], count: 0 });
+    apiMocks.startImport.mockResolvedValue({
+      format: "manifest",
+      categories_created: 0,
+      categories_reused: 0,
+      created: 1,
+      linked: 0,
+      skipped: 0,
+      failed: 0,
+      objects: [{
+        source_id: "33333333-3333-4333-8333-333333333333",
+        filename: "creado.png",
+        status: "created",
+        reason: null,
+        message: null,
+        media_object_id: "33333333-3333-4333-8333-333333333333",
+        category_paths: [],
+        scan_queued: false
+      }]
+    });
+
+    const view = render(
+      <QueryClientProvider client={createClient()}>
+        <MediaLibrary labels={{
+          title: "Biblioteca multimedia",
+          viewLabel: "Vista de la biblioteca",
+          views: { list: "Lista", grid: "Cuadrícula", masonry: "Mosaico", tree: "Árbol" },
+          importExport: "Importar / Exportar",
+          uploadMedia: "Subir archivo",
+          searchPlaceholder: "Buscar por nombre",
+          searchLabel: "Buscar medios",
+          tree: {
+            regionLabel: "Categorías multimedia",
+            title: "Categorías",
+            empty: "Todavía no hay categorías.",
+            allMedia: "Todos los medios",
+            uncategorized: "Sin categoría"
+          },
+          transfer: {
+            regionLabel: "Importar y exportar medios",
+            exportTitle: "Exportar",
+            importTitle: "Importar",
+            startExport: "Iniciar exportación",
+            startImport: "Iniciar importación",
+            chooseFile: "Elegir archivo",
+            report: (created, linked, skipped, failed) =>
+              `${created} creados, ${linked} vinculados, ${skipped} omitidos, ${failed} fallidos`,
+            importStatuses: { created: "Creado", linked: "Vinculado", skipped: "Omitido", failed: "Fallido" }
+          },
+          upload: { title: "Subir archivo", closeLabel: "Cerrar carga", form: { category: "Categorías de usuario" } }
+        }} />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+
+    expect(view.container.querySelector('input[aria-label="Buscar medios"]')?.getAttribute("placeholder")).toBe(
+      "Buscar por nombre"
+    );
+    expect(view.container.querySelector('[aria-label="Vista de la biblioteca"]')?.textContent).toContain("Árbol");
+
+    click([...view.container.querySelectorAll("button")].find((button) => button.textContent === "Árbol"));
+    await waitFor(() => expect(view.container.querySelector('[aria-label="Categorías multimedia"]')).not.toBeNull());
+    expect(view.container.textContent).toContain("Todos los medios");
+
+    click([...view.container.querySelectorAll("button")].find((button) => button.textContent === "Importar / Exportar"));
+    await waitFor(() => expect(view.container.querySelector('[aria-label="Importar y exportar medios"]')).not.toBeNull());
+    expect(view.container.textContent).toContain("Iniciar exportación");
+    expect(view.container.textContent).toContain("Elegir archivo");
+
+    const importFile = view.container.querySelector<HTMLInputElement>('[aria-label="Importar"] input[type="file"]');
+    const file = new File(["{}"], "manifest.json", { type: "application/json" });
+    await act(async () => {
+      Object.defineProperty(importFile, "files", { value: [file], configurable: true });
+      importFile?.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    click([...view.container.querySelectorAll("button")].find((button) => button.textContent === "Iniciar importación"));
+    await waitFor(() => expect(view.container.textContent).toContain("1 creados, 0 vinculados, 0 omitidos, 0 fallidos"));
+    expect(view.container.querySelector(".fa-media-transfer-table tbody tr")?.textContent).toContain("Creado");
+
+    click([...view.container.querySelectorAll("button")].find((button) => button.textContent === "Subir archivo"));
+    await waitFor(() => expect(view.container.querySelector('[role="dialog"]')).not.toBeNull());
+    expect(view.container.querySelector('[role="dialog"]')?.textContent).toContain("Subir archivo");
+    expect(view.container.querySelector('fieldset[aria-label="Categorías de usuario"]')).not.toBeNull();
 
     view.unmount();
   });

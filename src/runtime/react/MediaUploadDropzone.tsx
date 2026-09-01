@@ -2,7 +2,7 @@ import { useState, type ChangeEvent } from "react";
 import { useMediaUpload } from "../hooks/useMediaUpload.js";
 import { ApiError, friendlyReasonMessage } from "../errors.js";
 import { UploadError } from "../upload/uploadController.js";
-import { CategoryMultiSelect } from "./CategoryMultiSelect.js";
+import { CategoryMultiSelect, type CategoryMultiSelectLabels } from "./CategoryMultiSelect.js";
 import type { MediaCategory, MediaObjectPublic, MediaVisibility } from "../schemas.js";
 
 const CATEGORIES: MediaCategory[] = [
@@ -25,13 +25,56 @@ const labelClassName =
  * distinct from an `api`/validation rejection (size/MIME/checksum/quota),
  * which is mapped through `friendlyReasonMessage` against the server detail.
  */
-function describeUploadError(error: unknown): { variant: "scan" | "validation"; message: string } {
+export interface MediaUploadDropzoneLabels {
+  heading: string;
+  category: string;
+  visibility: string;
+  categories: Record<MediaCategory, string>;
+  visibilities: Record<MediaVisibility, string>;
+  emptyCategories: string;
+  chooseFile: string;
+  cancel: string;
+  uploadFailed: string;
+  scanRejected: string;
+  categoryPicker: Partial<CategoryMultiSelectLabels>;
+}
+
+const DEFAULT_LABELS: MediaUploadDropzoneLabels = {
+  heading: "Upload media",
+  category: "Category",
+  visibility: "Visibility",
+  categories: {
+    avatar: "Avatar",
+    document: "Document",
+    asset: "Asset",
+    chat_attachment: "Chat attachment",
+    export: "Export",
+    receipt: "Receipt"
+  },
+  visibilities: {
+    private: "Private",
+    public: "Public",
+    tenant: "Tenant",
+    sensitive: "Sensitive"
+  },
+  emptyCategories: "No user categories yet. This upload will still work — the category above is the one the service requires.",
+  chooseFile: "Choose file",
+  cancel: "Cancel",
+  uploadFailed: "Upload failed",
+  scanRejected: "Rejected by virus scan: ",
+  categoryPicker: {}
+};
+
+function describeUploadError(
+  error: unknown,
+  fallback: string
+): { variant: "scan" | "validation"; message: string } {
   if (error instanceof UploadError) {
     if (error.kind === "scan") return { variant: "scan", message: error.message };
     const detail = error.cause instanceof ApiError ? error.cause.detail : undefined;
     return { variant: "validation", message: friendlyReasonMessage(detail, error.message) };
   }
-  return { variant: "validation", message: error instanceof Error ? error.message : "Upload failed" };
+  return { variant: "validation", message: error instanceof Error ? error.message : fallback };
 }
 
 export function MediaUploadDropzone({
@@ -40,7 +83,8 @@ export function MediaUploadDropzone({
   defaultCategoryIds,
   showUserCategories = true,
   checksum = "sha256",
-  heading = "Upload media",
+  heading,
+  labels: labelOverrides,
   onUploaded
 }: {
   defaultCategory?: MediaCategory;
@@ -56,8 +100,21 @@ export function MediaUploadDropzone({
   checksum?: "none" | "sha256";
   /** Visible section heading. Pass false when a surrounding dialog labels the form. */
   heading?: string | false;
+  labels?: Partial<Omit<MediaUploadDropzoneLabels, "categories" | "visibilities" | "categoryPicker">> & {
+    categories?: Partial<Record<MediaCategory, string>>;
+    visibilities?: Partial<Record<MediaVisibility, string>>;
+    categoryPicker?: Partial<CategoryMultiSelectLabels>;
+  };
   onUploaded?: (object: MediaObjectPublic) => void;
 }) {
+  const labels: MediaUploadDropzoneLabels = {
+    ...DEFAULT_LABELS,
+    ...labelOverrides,
+    categories: { ...DEFAULT_LABELS.categories, ...labelOverrides?.categories },
+    visibilities: { ...DEFAULT_LABELS.visibilities, ...labelOverrides?.visibilities },
+    categoryPicker: { ...DEFAULT_LABELS.categoryPicker, ...labelOverrides?.categoryPicker }
+  };
+  const resolvedHeading = heading === undefined ? labels.heading : heading;
   const { upload, abort, progress, error, busy } = useMediaUpload();
   const [category, setCategory] = useState<MediaCategory>(defaultCategory);
   const [visibility, setVisibility] = useState<MediaVisibility>(defaultVisibility);
@@ -87,24 +144,24 @@ export function MediaUploadDropzone({
 
   return (
     <section className="not-content fa-media-panel">
-      {heading ? <h2>{heading}</h2> : null}
+      {resolvedHeading ? <h2>{resolvedHeading}</h2> : null}
       <div className="fa-media-field">
         <div className="fa-media-field-control">
-          <label className={labelClassName} htmlFor="fa-media-upload-category">Category</label>
+          <label className={labelClassName} htmlFor="fa-media-upload-category">{labels.category}</label>
           <select id="fa-media-upload-category" className={inputClassName} value={category} onChange={(event) => setCategory(event.currentTarget.value as MediaCategory)}>
             {CATEGORIES.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {labels.categories[value]}
               </option>
             ))}
           </select>
         </div>
         <div className="fa-media-field-control">
-          <label className={labelClassName} htmlFor="fa-media-upload-visibility">Visibility</label>
+          <label className={labelClassName} htmlFor="fa-media-upload-visibility">{labels.visibility}</label>
           <select id="fa-media-upload-visibility" className={inputClassName} value={visibility} onChange={(event) => setVisibility(event.currentTarget.value as MediaVisibility)}>
             {VISIBILITIES.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {labels.visibilities[value]}
               </option>
             ))}
           </select>
@@ -116,10 +173,14 @@ export function MediaUploadDropzone({
           onChange={setCategoryIds}
           disabled={busy}
           idPrefix="fa-media-upload-categories"
-          emptyHint="No user categories yet. This upload will still work — the category above is the one the service requires."
+          emptyHint={labels.emptyCategories}
+          labels={labels.categoryPicker}
         />
       ) : null}
-      <input className={inputClassName} type="file" disabled={busy} onChange={onPick} />
+      <label className="fa-media-button inline-flex min-h-8 cursor-pointer items-center rounded-lg border border-input px-3 py-1 text-sm font-medium transition-colors hover:bg-muted">
+        {labels.chooseFile}
+        <input className="sr-only" type="file" disabled={busy} onChange={onPick} />
+      </label>
       {progress ? (
         <div className="fa-media-progress" role="status">
           <span>{progress.state}</span>
@@ -128,15 +189,15 @@ export function MediaUploadDropzone({
       ) : null}
       {busy ? (
         <button type="button" onClick={abort}>
-          Cancel
+          {labels.cancel}
         </button>
       ) : null}
       {error
         ? (() => {
-            const { variant, message } = describeUploadError(error);
+            const { variant, message } = describeUploadError(error, labels.uploadFailed);
             return (
               <p role="alert" className={`fa-media-upload-error fa-media-upload-error--${variant}`}>
-                {variant === "scan" ? "Rejected by virus scan: " : null}
+                {variant === "scan" ? labels.scanRejected : null}
                 {message}
               </p>
             );

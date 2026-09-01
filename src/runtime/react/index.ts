@@ -7,8 +7,8 @@ export {
   type MediaErrorBoundaryProps
 } from "./MediaErrorBoundary.js";
 export { RequireSuperuser } from "./RequireSuperuser.js";
-export { MediaUploadDropzone } from "./MediaUploadDropzone.js";
-export { MediaLibrary } from "./MediaLibrary.js";
+export { MediaUploadDropzone, type MediaUploadDropzoneLabels } from "./MediaUploadDropzone.js";
+export { MediaLibrary, type MediaLibraryLabels } from "./MediaLibrary.js";
 export { ObjectDetail } from "./ObjectDetail.js";
 export { VariantPicker } from "./VariantPicker.js";
 export { PresetEditor } from "./PresetEditor.js";
@@ -19,6 +19,7 @@ export {
   collectCategoryPaths,
   isSameCategorySelection,
   type CategoryMultiSelectProps,
+  type CategoryMultiSelectLabels,
   type CategoryMultiSelectViewProps,
   type CategoryPathOption
 } from "./CategoryMultiSelect.js";
