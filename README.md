@@ -30,8 +30,15 @@ Pinned to `media-service-m8@1.1` (supported service-version range
 ## Backend contract
 
 This package targets the additive `media-service-m8@1.1` API contract and was
-tested against `media-service-m8` service version `2.0.0`. Supported backend
+tested against `media-service-m8` service version `2.1.1`. Supported backend
 service versions are `>=2.0.0 <3.0.0`.
+
+The contract axis and the service axis move independently, and only the range
+gates anything. The **contract** stays `1.1` because no served shape changed;
+the **tested service version** names what this client was exercised against.
+Since the range admits the whole 2.x line, a host on the published `2.1.0`
+passes preflight unchanged — the tested value is a statement of provenance, not
+a floor.
 
 Compatibility helpers are exported from `@mano8/astro-media-m8/compatibility`.
 `media-service-m8` (>= 0.0.10) exposes a public `GET {API_PREFIX}/meta` route

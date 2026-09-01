@@ -14,7 +14,18 @@ const MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS = new Set([
 // same service release line. A pre-tier 1.x service is deliberately no longer
 // admitted: it cannot serve the authorization behavior this plugin's guards
 // assume.
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "2.0.0";
+// The service version this client was actually exercised against: 2.1.1, the
+// single-object category-projection fix, whose OpenAPI is what every schema
+// here was diffed against in the same pass.
+//
+// Written ahead of the 2.1.1 tag, deliberately and on the record — the same
+// ordering inversion the workspace matrix documents for the 2.1.0 image pins,
+// noted rather than hidden. It is safe *here* in a way a pin is not: this
+// constant resolves nothing and installs nothing. The gate is
+// MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE below, which already admits the whole
+// 2.x line, so a host pointed at the published 2.1.0 passes preflight
+// unchanged and this value never refuses it.
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "2.1.1";
 export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "2.0.0";
 export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "3.0.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;

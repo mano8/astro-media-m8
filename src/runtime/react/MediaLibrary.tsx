@@ -174,8 +174,15 @@ const treeLayoutClassName = "fa-media-tree-layout flex w-full flex-col items-str
 // two panes at `md`, so the categories collapse above the list rather than
 // beside it; the pane's own height is bounded and scrollable at every width so
 // a deep tree can never push the results off the bottom of a phone screen.
+//
+// `overflow-auto`, not `overflow-y-auto`: the pane's width is fixed (`md:w-64`)
+// while a nested branch's width is not, so a deep tree used to be clipped with
+// no way to reach the rest of it. The horizontal bar is `auto`, so it appears
+// only when the widest row actually exceeds the pane — a shallow tree looks
+// exactly as it did. It only has anything to scroll because the list below
+// sizes to `min-w-max` and the row labels no longer truncate.
 const treePaneClassName =
-  "fa-media-tree-pane max-h-[50vh] w-full shrink-0 overflow-y-auto rounded-lg border border-border bg-card p-3 text-card-foreground md:max-h-[70vh] md:w-64";
+  "fa-media-tree-pane max-h-[50vh] w-full shrink-0 overflow-auto rounded-lg border border-border bg-card p-3 text-card-foreground md:max-h-[70vh] md:w-64";
 const treeResultsClassName = "fa-media-tree-results min-w-0 flex-1";
 // The row is not focusable any more — its `<li role="treeitem">` parent holds
 // the tab stop — so the focus ring is drawn here off the parent's
@@ -618,7 +625,7 @@ interface TreePaneRow {
 
 function collectBranchRows(
   nodes: readonly CategoryNode[],
-  collapsed: ReadonlySet<number>,
+  expandedIds: ReadonlySet<number>,
   level: number,
   parentKey: string | null,
   out: TreePaneRow[]
@@ -626,7 +633,7 @@ function collectBranchRows(
   for (const node of nodes) {
     const key = `category-${node.id}`;
     const hasChildren = node.children.length > 0;
-    const expanded = hasChildren && !collapsed.has(node.id);
+    const expanded = hasChildren && expandedIds.has(node.id);
     out.push({
       key,
       selection: { kind: "category", id: node.id },
@@ -635,11 +642,11 @@ function collectBranchRows(
       hasChildren,
       expanded
     });
-    if (expanded) collectBranchRows(node.children, collapsed, level + 1, key, out);
+    if (expanded) collectBranchRows(node.children, expandedIds, level + 1, key, out);
   }
 }
 
-function flattenPaneRows(tree: readonly CategoryNode[], collapsed: ReadonlySet<number>): TreePaneRow[] {
+function flattenPaneRows(tree: readonly CategoryNode[], expandedIds: ReadonlySet<number>): TreePaneRow[] {
   const rows: TreePaneRow[] = PSEUDO_ROWS.map(({ selection }) => ({
     key: branchKey(selection),
     selection,
@@ -648,7 +655,7 @@ function flattenPaneRows(tree: readonly CategoryNode[], collapsed: ReadonlySet<n
     hasChildren: false,
     expanded: false
   }));
-  collectBranchRows(tree, collapsed, 1, null, rows);
+  collectBranchRows(tree, expandedIds, 1, null, rows);
   return rows;
 }
 
@@ -662,7 +669,7 @@ interface TreePaneController {
   labels: MediaLibraryLabels["tree"];
   selection: CategoryBranchSelection;
   activeKey: string | null;
-  collapsed: ReadonlySet<number>;
+  expandedIds: ReadonlySet<number>;
   registerItem: (key: string, element: HTMLLIElement | null) => void;
   select: (selection: CategoryBranchSelection) => void;
   toggle: (id: number) => void;
@@ -749,7 +756,7 @@ function MediaCategoryTreeItem({
         ) : (
           <span className={treeToggleSpacerClassName} aria-hidden="true" />
         )}
-        <span id={labelId} className="fa-media-tree-name truncate">
+        <span id={labelId} className="fa-media-tree-name whitespace-nowrap">
           {label}
         </span>
         {count === undefined ? null : (
@@ -785,7 +792,7 @@ function MediaCategoryBranch({
   controller: TreePaneController;
 }) {
   const hasChildren = node.children.length > 0;
-  const expanded = hasChildren && !controller.collapsed.has(node.id);
+  const expanded = hasChildren && controller.expandedIds.has(node.id);
 
   return (
     <MediaCategoryTreeItem
@@ -833,14 +840,16 @@ function MediaCategoryTreePane({
   const { tree, loading, error } = useCategoryTree();
   const baseId = useId();
   const headingId = `${baseId}-heading`;
-  // Collapsed ids, not expanded ones: the pane opens with the whole tree
-  // visible — the behaviour it had before arrow keys existed — and the set
-  // only grows as the user closes a branch. An `expandedIds` set would have to
-  // be seeded from ids the first render does not have yet.
-  const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(() => new Set<number>());
+  // Expanded ids, not collapsed ones: the pane opens with every branch shut,
+  // so a deep tree presents its roots rather than its whole depth at once and
+  // the pane starts at the width it can actually show. An empty set is the
+  // honest seed for that — the inverted `collapsed` set this replaced could
+  // only mean "all open" on first render, because the ids it would have to
+  // hold are not known until the tree resolves.
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(() => new Set<number>());
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const itemsRef = useRef(new Map<string, HTMLLIElement>());
-  const rows = useMemo(() => flattenPaneRows(tree, collapsed), [tree, collapsed]);
+  const rows = useMemo(() => flattenPaneRows(tree, expandedIds), [tree, expandedIds]);
 
   // Roving tabindex: exactly one treeitem is tabbable — the last focused row
   // while it stays visible, else the selected row, else the first row.
@@ -871,11 +880,11 @@ function MediaCategoryTreePane({
   }
 
   function setExpansion(id: number, expand: boolean) {
-    setCollapsed((previous) => {
-      if (previous.has(id) === !expand) return previous;
+    setExpandedIds((previous) => {
+      if (previous.has(id) === expand) return previous;
       const next = new Set(previous);
-      if (expand) next.delete(id);
-      else next.add(id);
+      if (expand) next.add(id);
+      else next.delete(id);
       return next;
     });
   }
@@ -931,10 +940,10 @@ function MediaCategoryTreePane({
     labels,
     selection,
     activeKey,
-    collapsed,
+    expandedIds,
     registerItem,
     select: onSelect,
-    toggle: (id) => setExpansion(id, collapsed.has(id)),
+    toggle: (id) => setExpansion(id, !expandedIds.has(id)),
     onItemKeyDown: (event, key) => {
       // Only the treeitem that actually holds focus reacts; the event bubbles
       // through every ancestor treeitem on its way out.
@@ -966,7 +975,7 @@ function MediaCategoryTreePane({
           {labels.empty}
         </p>
       ) : null}
-      <ul role="tree" aria-labelledby={headingId} className="fa-media-tree-nodes">
+      <ul role="tree" aria-labelledby={headingId} className="fa-media-tree-nodes min-w-max">
         {PSEUDO_ROWS.map((row) => (
           <MediaCategoryTreeItem
             key={branchKey(row.selection)}

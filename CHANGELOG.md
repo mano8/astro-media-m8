@@ -53,8 +53,72 @@ folding it the correct call rather than a tidying one.
   backed by the existing tenant-scoped `CategoryManager`, so consumers can
   mount category creation, rename, reparent and delete as a real page.
 
+### Fixed
+
+- **The tree view's category pane scrolls horizontally instead of clipping**
+  (`U7`). The pane's width is fixed from `md` up (`md:w-64`) while a nested
+  branch's is not, so a tree several levels deep ran off the pane edge with no
+  way to reach the rest of it — every row was ellipsed at the same point and
+  the indentation kept pushing the labels further right. Three changes make the
+  pane show its content rather than hide it, and they only work together:
+  `overflow-y-auto` becomes `overflow-auto`; the `role="tree"` list takes
+  `min-w-max` so it states the width of its widest row; and
+  `.fa-media-tree-name` drops `truncate` for plain `whitespace-nowrap`. A
+  truncating label can never widen its list, so with the old rule the new
+  horizontal bar would have had nothing to reveal. The bar is `auto`, so a
+  shallow tree renders exactly as before. Carried in both the Tailwind token
+  classes and the framework-neutral `media.css` fallback (`D11`).
+- **The child indent is trimmed** — `.fa-media-tree-children` `padding-left`
+  `1.25rem` → `0.75rem` and `margin-left` `0.4rem` → `0.25rem`. Each level pays
+  for indent *and* a `1.25rem` toggle column, so on a four-deep tree the indent
+  was the largest single contributor to the width that pushed rows out of the
+  pane. `0.75rem` still clears the toggle glyph, so the branch guide rule stays
+  legible against the row it belongs to.
+
 ### Changed
 
+- **The category tree pane opens with every branch collapsed.** It used to
+  render the whole tree expanded, which on a deep hierarchy filled the pane
+  with descendants before the user had chosen a branch and made the pane its
+  widest at the moment it was least useful. The pane now tracks `expandedIds`
+  rather than the inverted `collapsed` set — an empty set is the honest seed
+  for "all shut", where the old set could only ever mean "all open" on first
+  render because the ids it would have to hold are not known until the tree
+  resolves. Nothing else about the pane's keyboard contract moves:
+  ArrowRight/ArrowLeft still open and close, and `aria-expanded` still reports
+  the real state. The `media-category-tree` registry skin drops its
+  `defaultExpandedIds={collectExpandableIds(nodes)}` for the same reason, so
+  the skin and the runtime pane stay non-divergent.
+- **`UploadCompleteRequestSchema` carries `category_ids`.** The served
+  `POST /media/v1/uploads/{id}/complete` has always accepted an optional
+  `category_ids` that *replaces* the filing staged at initiate (`[]` completes
+  the object filed into nothing), and this schema is `.strict()` — so a caller
+  meaning to override the filing at complete time was rejected client-side
+  before the request was ever made. Purely additive: omitting the key still
+  means "keep what initiate staged", which is what this package's own upload
+  controller relies on, so no existing caller changes.
+- **The `media-service-m8` pairing is re-measured.**
+  `MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION` and `mediaServiceM8.testedServiceVersion`
+  move `2.0.0` → `2.1.1` — the service this client was actually exercised
+  against, whose OpenAPI every schema here was diffed against in the same pass.
+  Written ahead of the `2.1.1` tag and recorded as such, the same ordering
+  inversion the workspace matrix documents for the `2.1.0` image pins; it is
+  safe here in a way a pin is not, because the constant resolves nothing and
+  installs nothing.
+  **Neither gate moves.** `MEDIA_SERVICE_M8_CONTRACT_VERSION` stays `1.1`
+  because the *contract* did not move: the service fix populates a field that
+  was already declared, already documented and already populated by the list and
+  write paths, so no served shape changed. `media_service`'s own
+  `CONTRACT_VERSION` is still `1.1` and `tests/test_meta.py` asserts it as a
+  literal — advancing this client past it would make every preflight demand a
+  contract the service does not serve. The service-version range likewise stays
+  `>=2.0.0 <3.0.0`, which admits the whole 2.x line, so a host on the published
+  `2.1.0` passes preflight unchanged. `REPOSITORY_CONTEXT.md` additionally carried
+  `>=1.0.0 <2.0.0` for that range, wrong twice over — it is a *service*-version
+  range, not a range of contract versions, and the value had been left behind by
+  the 2.x repoint, so it excluded every service this package admits.
+  `compatibility.ts` and the `mediaServiceM8` block have been right since that
+  repoint; the doc line was the outlier and is corrected in place.
 - **Required auth peer raised to `@mano8/astro-auth-m8` `^2.2.0`**, in both
   `peerDependencies` and `devDependencies`. The previous `^1.5.0` range excluded
   every 2.x auth release, so this package declared it needed an auth generation

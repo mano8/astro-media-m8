@@ -241,7 +241,16 @@ export type UploadInitiateResponse = z.infer<typeof UploadInitiateResponseSchema
 
 export const UploadCompleteRequestSchema = z
   .object({
-    sha256: z.string().nullable().optional()
+    sha256: z.string().nullable().optional(),
+    // Set semantics, and the *second* place a filing can be declared (`U4`):
+    // the service replaces whatever `POST /uploads/initiate` staged with this
+    // array, and `[]` completes the object filed into nothing. Omitting the
+    // key is not the same as sending `[]` — the service re-resolves the
+    // session's staged ids on omission, which is what the upload controller
+    // relies on today. Declared here because the schema is `.strict()`: the
+    // served contract accepts the field, so a caller that means to override
+    // at complete time must not have it rejected client-side.
+    category_ids: z.array(z.number().int()).max(50).optional()
   })
   .strict();
 export type UploadCompleteRequest = z.infer<typeof UploadCompleteRequestSchema>;

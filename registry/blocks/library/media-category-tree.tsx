@@ -83,16 +83,6 @@ function categoryNodeToTreeViewNode(node: CategoryNode): TreeViewNode {
   };
 }
 
-function collectExpandableIds(nodes: TreeViewNode[]): string[] {
-  const ids: string[] = [];
-  for (const node of nodes) {
-    if (node.children && node.children.length > 0) {
-      ids.push(node.id, ...collectExpandableIds(node.children));
-    }
-  }
-  return ids;
-}
-
 export interface MediaCategoryTreeLabels {
   ariaLabel: string;
   all: string;
@@ -146,8 +136,6 @@ export function MediaCategoryTree({
     ],
     [tree, t.all, t.uncategorized],
   );
-  const defaultExpandedIds = React.useMemo(() => collectExpandableIds(nodes), [nodes]);
-
   const handleSelect = React.useCallback(
     (node: TreeViewNode) => {
       const next = selectionFromNodeId(node.id);
@@ -179,11 +167,15 @@ export function MediaCategoryTree({
           onRetry={() => void reload()}
         />
       ) : null}
+      {/* No `defaultExpandedIds`: `TreeView` seeds an empty set, so every branch
+          opens shut. This tracks the runtime `MediaCategoryTreePane`, which made
+          the same move — a deep tree should present its roots, not its full
+          depth, and the pane should start at a width it can show. The skin and
+          the runtime pane are kept deliberately non-divergent (`U7`). */}
       <TreeView
         nodes={nodes}
         selectedId={nodeIdFromSelection(selection)}
         onSelect={handleSelect}
-        defaultExpandedIds={defaultExpandedIds}
         aria-label={t.ariaLabel}
       />
       {!loading && !error && tree.length === 0 ? (

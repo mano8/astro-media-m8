@@ -445,6 +445,10 @@ describe("MediaLibrary", () => {
     );
     await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
     await openTree(view.container);
+    // every branch opens shut, so only the two pseudo-rows and the two roots
+    // are on screen; `2026` has to be opened for before it can be clicked
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4));
+    click(toggleByName(view.container, "Invoices"));
     await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(5));
     const beforeBranch = apiMocks.listObjects.mock.calls.length;
 
@@ -653,6 +657,14 @@ describe("MediaLibrary", () => {
     );
     await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
     await openTree(view.container);
+    // the pane opens with every branch shut: two pseudo-rows and two roots,
+    // no `role="group"` at all, and the parent says so on `aria-expanded`
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4));
+    expect(view.container.querySelectorAll('ul[role="group"]')).toHaveLength(0);
+    expect(treeItemByName(view.container, "Invoices").getAttribute("aria-expanded")).toBe("false");
+    expect(view.container.querySelector('li[role="treeitem"] [id$="-label"]')?.textContent).toBe("All media");
+
+    click(toggleByName(view.container, "Invoices"));
     await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
 
     // the pane collapses above the list on narrow viewports and only becomes a
@@ -663,8 +675,18 @@ describe("MediaLibrary", () => {
     expect(layout?.className).toContain("md:flex-row");
     const pane = view.container.querySelector<HTMLElement>(".fa-media-tree-pane");
     expect(pane?.className).toContain("max-h-[50vh]");
-    expect(pane?.className).toContain("overflow-y-auto");
     expect(pane?.className).toContain("md:w-64");
+    // both axes scroll, and the list and its labels are what can outgrow the
+    // pane horizontally — a truncating label could never widen it, so the
+    // horizontal bar would have had nothing to reveal
+    expect(pane?.className).toContain("overflow-auto");
+    expect(pane?.className).not.toContain("overflow-y-auto");
+    expect(view.container.querySelector('ul[role="tree"]')?.className).toContain("min-w-max");
+    const invoicesLabel = view.container.ownerDocument.getElementById(
+      (treeItemByName(view.container, "Invoices").getAttribute("aria-labelledby") ?? "").split(" ")[0] ?? ""
+    );
+    expect(invoicesLabel?.className).toContain("whitespace-nowrap");
+    expect(invoicesLabel?.className).not.toContain("truncate");
 
     // roles: one tree, named by the pane heading, with a group per open branch
     const treeRoot = view.container.querySelector<HTMLElement>('ul[role="tree"]');
@@ -734,6 +756,10 @@ describe("MediaLibrary", () => {
     );
     await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
     await openTree(view.container);
+    // opened by pointer first: the pane's default is every branch shut, and the
+    // walk below needs `Invoices` open to have anything to step into
+    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4));
+    click(toggleByName(view.container, "Invoices"));
     await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
 
     const active = () => view.container.ownerDocument.activeElement;

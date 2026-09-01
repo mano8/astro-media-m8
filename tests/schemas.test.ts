@@ -116,6 +116,16 @@ describe("upload schemas", () => {
       }).upload_fields.key
     ).toBe("v");
     expect(s.UploadCompleteRequestSchema.parse({}).sha256).toBeUndefined();
+    // `category_ids` is the second place a filing can be declared (`U4`): the
+    // service replaces the ids staged at initiate with this array. Omitting it
+    // and sending `[]` are different requests — omission keeps the staged ids,
+    // `[]` completes the object filed into nothing — so the schema must be
+    // able to carry `[]` through rather than treat it as absent. It is
+    // `.strict()`, so a missing declaration would reject a legal body.
+    expect(s.UploadCompleteRequestSchema.parse({}).category_ids).toBeUndefined();
+    expect(s.UploadCompleteRequestSchema.parse({ category_ids: [] }).category_ids).toEqual([]);
+    expect(s.UploadCompleteRequestSchema.parse({ sha256: null, category_ids: [3, 4] }).category_ids).toEqual([3, 4]);
+    expect(() => s.UploadCompleteRequestSchema.parse({ category_ids: Array.from({ length: 51 }, (_, i) => i) })).toThrow();
     expect(s.UploadCompleteResponseSchema.parse({ media_object: mediaObject }).media_object.id).toBe(uuid);
   });
 });

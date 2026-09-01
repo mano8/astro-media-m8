@@ -34,7 +34,13 @@ host source edits outside documented registration points.
 - Communicate with `media-service-m8` over HTTP only; never import service code.
 - Publish `@mano8/astro-media-m8` and keep `mediaServiceM8` package metadata,
   schemas, and compatibility checks aligned with the `media-service-m8@1.1`
-  contract (`>=1.0.0 <2.0.0`).
+  contract, over the supported service-version range `>=2.0.0 <3.0.0`.
+  The parenthesised range here read `>=1.0.0 <2.0.0` until 2026-09-01 and was
+  wrong twice over: it is a **service**-version range, not a range of contract
+  versions, and its value had been left behind by the 2.x repoint — it excluded
+  every service this package actually admits. `compatibility.ts` and the
+  `mediaServiceM8` block have both read `>=2.0.0 <3.0.0` since that repoint;
+  this line was the outlier.
 - Model public backend responses only; never expose secret or session fields.
 - Export public modules only through explicit `package.json` subpaths.
 
