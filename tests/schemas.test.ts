@@ -45,12 +45,26 @@ describe("enum schemas", () => {
 describe("object schemas", () => {
   it("parses a media object and list/download responses", () => {
     expect(s.MediaObjectPublicSchema.parse(mediaObject).id).toBe(uuid);
+    expect(s.MediaObjectPublicSchema.parse(mediaObject).categories).toEqual([]);
     expect(
       s.ObjectListResponseSchema.parse({ items: [mediaObject], next_cursor: "c", count: 1 }).count
     ).toBe(1);
     expect(s.DownloadUrlResponseSchema.parse({ url: "https://x", expires_at: iso }).url).toBe("https://x");
     expect(s.MediaObjectUpdateSchema.parse({ visibility: "public" }).visibility).toBe("public");
+    expect(s.MediaObjectUpdateSchema.parse({ category_ids: [1, 2] }).category_ids).toEqual([1, 2]);
+    expect(s.MediaObjectUpdateSchema.parse({ category_ids: [] }).category_ids).toEqual([]);
+    expect(s.MediaObjectUpdateSchema.parse({ category_ids: null }).category_ids).toBeNull();
     expect(s.ScanResultRequestSchema.parse({ scan_status: "clean" }).scan_status).toBe("clean");
+  });
+
+  it("parses a media object with a resolved category filing", () => {
+    const withCategories = {
+      ...mediaObject,
+      categories: [{ id: 1, name: "invoices", path: "documents/invoices" }]
+    };
+    expect(s.MediaObjectPublicSchema.parse(withCategories).categories[0]?.path).toBe(
+      "documents/invoices"
+    );
   });
 
   it("applies defaults for nullable fields", () => {
@@ -75,6 +89,25 @@ describe("upload schemas", () => {
       }).category
     ).toBe("avatar");
     expect(
+      s.UploadInitiateRequestSchema.parse({
+        category: "avatar",
+        visibility: "public",
+        original_filename: "a.png",
+        mime_type: "image/png",
+        expected_size_bytes: 1
+      }).category_ids
+    ).toBeUndefined();
+    expect(
+      s.UploadInitiateRequestSchema.parse({
+        category: "avatar",
+        visibility: "public",
+        original_filename: "a.png",
+        mime_type: "image/png",
+        expected_size_bytes: 1,
+        category_ids: [1, 2]
+      }).category_ids
+    ).toEqual([1, 2]);
+    expect(
       s.UploadInitiateResponseSchema.parse({
         session_id: uuid,
         upload_url: "https://s3",
@@ -83,6 +116,16 @@ describe("upload schemas", () => {
       }).upload_fields.key
     ).toBe("v");
     expect(s.UploadCompleteRequestSchema.parse({}).sha256).toBeUndefined();
+    // `category_ids` is the second place a filing can be declared (`U4`): the
+    // service replaces the ids staged at initiate with this array. Omitting it
+    // and sending `[]` are different requests — omission keeps the staged ids,
+    // `[]` completes the object filed into nothing — so the schema must be
+    // able to carry `[]` through rather than treat it as absent. It is
+    // `.strict()`, so a missing declaration would reject a legal body.
+    expect(s.UploadCompleteRequestSchema.parse({}).category_ids).toBeUndefined();
+    expect(s.UploadCompleteRequestSchema.parse({ category_ids: [] }).category_ids).toEqual([]);
+    expect(s.UploadCompleteRequestSchema.parse({ sha256: null, category_ids: [3, 4] }).category_ids).toEqual([3, 4]);
+    expect(() => s.UploadCompleteRequestSchema.parse({ category_ids: Array.from({ length: 51 }, (_, i) => i) })).toThrow();
     expect(s.UploadCompleteResponseSchema.parse({ media_object: mediaObject }).media_object.id).toBe(uuid);
   });
 });
@@ -228,7 +271,7 @@ describe("admin & maintenance schemas", () => {
   });
 });
 
-describe("dashboard & legacy category schemas", () => {
+describe("dashboard & category schemas", () => {
   it("parses activity and category envelopes", () => {
     expect(
       s.UsersActivitySchema.parse({
@@ -238,11 +281,95 @@ describe("dashboard & legacy category schemas", () => {
     ).toBe(1);
     const category = { id: 1, owner_id: uuid, name: "n", slug: "n" };
     expect(s.CategoryPublicSchema.parse(category).slug).toBe("n");
+    expect(s.CategoryPublicSchema.parse(category).parent_id).toBeNull();
     expect(s.CategoriesPublicSchema.parse({ data: [category], count: 1 }).count).toBe(1);
     expect(s.CategoryCreateSchema.parse({ name: "n" }).name).toBe("n");
+    expect(s.CategoryCreateSchema.parse({ name: "n", parent_id: 3 }).parent_id).toBe(3);
     expect(s.CategoryUpdateSchema.parse({ name: "n" }).name).toBe("n");
     expect(s.ResponseMessageSchema.parse({ success: true, msg: "ok" }).success).toBe(true);
     expect(s.ResponseModelBaseSchema.parse({ success: true, data: { a: 1 } }).success).toBe(true);
     expect(s.ResponseModelOrMessageSchema.parse({ success: false, msg: "x" })).toBeTruthy();
+  });
+
+  it("parses a nested category tree, including a 3-level branch, and rejects a malformed node", () => {
+    const grandchild = {
+      id: 3,
+      owner_id: uuid,
+      tenant_id: null,
+      name: "2026",
+      slug: "2026",
+      parent_id: 2,
+      object_count: 4,
+      total_object_count: 4,
+      children: []
+    };
+    const child = {
+      id: 2,
+      owner_id: uuid,
+      tenant_id: null,
+      name: "invoices",
+      slug: "invoices",
+      parent_id: 1,
+      object_count: 0,
+      total_object_count: 4,
+      children: [grandchild]
+    };
+    const root = {
+      id: 1,
+      owner_id: uuid,
+      tenant_id: null,
+      name: "documents",
+      slug: "documents",
+      parent_id: null,
+      object_count: 0,
+      total_object_count: 4,
+      children: [child]
+    };
+
+    const parsed = s.CategoryNodeSchema.parse(root);
+    expect(parsed.children[0]?.children[0]?.slug).toBe("2026");
+    expect(parsed.children[0]?.children[0]?.total_object_count).toBe(4);
+
+    const tree = s.CategoryTreeSchema.parse({ data: [root], count: 3 });
+    expect(tree.data[0]?.children[0]?.children[0]?.id).toBe(3);
+    expect(tree.count).toBe(3);
+
+    // A leaf omitting `children`/counts still parses — they default.
+    expect(
+      s.CategoryNodeSchema.parse({
+        id: 4,
+        owner_id: uuid,
+        name: "empty",
+        slug: "empty",
+        parent_id: null
+      }).children
+    ).toEqual([]);
+
+    // Malformed: a non-array `children` on a nested node must not parse.
+    expect(() =>
+      s.CategoryNodeSchema.parse({
+        ...root,
+        children: [{ ...child, children: "not-an-array" }]
+      })
+    ).toThrow();
+    // Malformed: an unknown key anywhere in the tree is rejected (`.strict()`).
+    expect(() => s.CategoryNodeSchema.parse({ ...root, extra: true })).toThrow();
+    // Malformed: a missing required field on a deep node is rejected.
+    expect(() =>
+      s.CategoryNodeSchema.parse({ ...root, children: [{ ...child, slug: undefined }] })
+    ).toThrow();
+
+    const nestedNode = (depth: number): typeof root => ({
+      ...root,
+      id: depth,
+      parent_id: depth === 1 ? null : depth - 1,
+      children: depth < s.MEDIA_CATEGORY_MAX_DEPTH ? [nestedNode(depth + 1)] : []
+    });
+    expect(s.CategoryNodeSchema.parse(nestedNode(1))).toBeTruthy();
+    const overDeep = nestedNode(1);
+    let deepest = overDeep;
+    while (deepest.children[0]) deepest = deepest.children[0];
+    deepest.children = [{ ...deepest, id: s.MEDIA_CATEGORY_MAX_DEPTH + 1, children: [] }];
+    expect(() => s.CategoryNodeSchema.parse(overDeep)).toThrow(/cannot exceed 10 levels/i);
   });
 });

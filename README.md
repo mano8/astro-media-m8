@@ -17,21 +17,28 @@ from [mano8/astro-ui-m8](https://github.com/mano8/astro-ui-m8), targets the
 media backend at [mano8/media-service-m8](https://github.com/mano8/media-service-m8),
 and composes into the [mano8/fa-ui-m8](https://github.com/mano8/fa-ui-m8) host app.
 
-### Related repositories
+## Related repositories
 
 - [`media-service-m8`](https://github.com/mano8/media-service-m8) — the FastAPI backend this plugin fronts.
 - [`astro-ui-m8`](https://github.com/mano8/astro-ui-m8) — canonical shared shadcn registry (data-table, state components) this plugin's admin views build on.
 - [`astro-auth-m8`](https://github.com/mano8/astro-auth-m8) — required auth peer; issues the fa-auth-m8 tokens this plugin's adapter consumes.
 - [`fa-ui-m8`](https://github.com/mano8/fa-ui-m8) — the Astro/Starlight host app this plugin installs into.
 
-Pinned to `media-service-m8@1.0` (supported service-version range
-`>=1.0.0 <2.0.0`; see `mediaServiceM8` in `package.json`).
+Pinned to `media-service-m8@1.1` (supported service-version range
+`>=2.0.0 <3.0.0`; see `mediaServiceM8` in `package.json`).
 
 ## Backend contract
 
-This package targets the `media-service-m8@1.0` API contract and was tested
-against `media-service-m8` service version `1.0.0`. Supported backend service
-versions are `>=1.0.0 <2.0.0`.
+This package targets the additive `media-service-m8@1.1` API contract and was
+tested against `media-service-m8` service version `2.1.1`. Supported backend
+service versions are `>=2.0.0 <3.0.0`.
+
+The contract axis and the service axis move independently, and only the range
+gates anything. The **contract** stays `1.1` because no served shape changed;
+the **tested service version** names what this client was exercised against.
+Since the range admits the whole 2.x line, a host on the published `2.1.0`
+passes preflight unchanged — the tested value is a statement of provenance, not
+a floor.
 
 Compatibility helpers are exported from `@mano8/astro-media-m8/compatibility`.
 `media-service-m8` (>= 0.0.10) exposes a public `GET {API_PREFIX}/meta` route
@@ -55,10 +62,12 @@ elsewhere.
 npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 ```
 
-`@mano8/astro-auth-m8` is a required peer: `media-service-m8` only accepts
-`fa-auth-m8`-issued tokens, so the plugin's auth adapter must be backed by
-`fa-auth-m8` (the official plugin, or a custom adapter that obtains those
-tokens). `@mano8/astro-ui-m8` is a normal dependency because the media registry
+`@mano8/astro-auth-m8` is a required peer at **`^2.2.0` or newer**:
+`media-service-m8` only accepts `fa-auth-m8`-issued tokens, so the plugin's auth
+adapter must be backed by `fa-auth-m8` (the official plugin, or a custom adapter
+that obtains those tokens). A 1.x auth is not supported — upgrade auth first, or
+the install resolves nothing that satisfies the peer.
+`@mano8/astro-ui-m8` (`^1.5.0`) is a normal dependency because the media registry
 skins compose the canonical shared table from its packaged registry output.
 `react`/`react-dom` are optional — only `./react`, `./hooks` and the starter
 views need them; `@tanstack/react-query` is a required peer once you use
@@ -67,7 +76,9 @@ views need them; `@tanstack/react-query` is a required peer once you use
 ## Modes
 
 - **headless** — schemas, API wrappers, upload controller, stores; no pages.
-- **starter** — injects upload / library / object / presets / admin routes.
+- **starter** — injects library (with an upload dialog), category CRUD, object,
+  presets and admin routes. The legacy upload route remains available for
+  direct links and opens the same library upload workflow.
 - **scaffolded** — `views.strategy: "scaffolded"` to own the view files.
 
 ## Quick start
@@ -184,6 +195,8 @@ declare the namespace in `components.json` for documentation / future HTTP hosti
 | `media-dashboard-overview` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-dashboard-overview.json` | `card`, `button`, `media-storage-chart`, `@mano8/astro-ui-m8/data-table`, `@mano8/astro-ui-m8/state-empty`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-loading`, `@mano8/astro-ui-m8/state-unauthorized` | `lucide-react`, `@tanstack/react-table` | **yes** (`useMediaAdmin`) |
 | `media-maintenance-panel` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-maintenance-panel.json` | `card`, `button`, `alert-dialog`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-unauthorized` | `lucide-react` | **yes** (`useMediaAdmin`) |
 | `admin-media-dashboard` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/admin-media-dashboard.json` | `tabs`, `@mano8/astro-ui-m8/state-unauthorized`, `media-dashboard-overview`, `media-maintenance-panel` | `lucide-react` | **yes** (`MediaProvider`, `RequireSuperuser`) |
+| `media-category-tree` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-category-tree.json` | `@mano8/astro-ui-m8/tree-view`, `@mano8/astro-ui-m8/state-empty`, `@mano8/astro-ui-m8/state-error`, `@mano8/astro-ui-m8/state-loading` | — | **yes** (`useCategoryTree`) |
+| `media-library-tree` | `npx shadcn add ./node_modules/@mano8/astro-media-m8/registry/r/media-library-tree.json` | `badge`, `button`, `@mano8/astro-ui-m8/data-table`, `@mano8/astro-ui-m8/state-error`, `media-category-tree` | `@tanstack/react-table` | **yes** (`useMediaObjects`) |
 
 `media-dashboard-overview` is the admin **landing** view (storage stat cards + a
 per-category storage chart + a subscriptions table built on the canonical
@@ -197,6 +210,18 @@ first) inside the package's `MediaProvider` + `RequireSuperuser`; drop the two p
 into your own shell instead if you already own the media chrome (as fa-ui-m8 does).
 Each reads its headless logic straight from `useMediaAdmin` and takes its strings via
 `labels`.
+
+`media-category-tree` is a shadcn skin over `astro-ui-m8`'s generic `tree-view` block
+for the nested user category tree: "All media" and "Uncategorized" pseudo-nodes always
+sit above the mapped category nodes, backed live by `useCategoryTree`, with the
+canonical `astro-ui-m8` loading/empty/error states. `media-library-tree` pairs that pane
+with the canonical `astro-ui-m8` `data-table` (right pane) scoped to the selected branch
+via `useMediaObjects`; because that hook is cursor-paginated rather than page-numbered,
+the table is pinned to the single loaded page and "Load more" is wired to the table's
+add-button slot instead of forking a second results table. Both compose rather than
+reimplement the shared `tree-view`/`data-table` blocks, per this package's registry
+convention. Headless category-tree parsing is bounded to 10 levels, matching the
+service default, so malformed responses cannot drive unbounded browser recursion.
 
 Files land under `src/components/fa-media/` (the items' `target`), import shadcn
 primitives via `@/components/ui/*`, and pull headless logic from the installed package.
@@ -217,11 +242,29 @@ Consumers should install the shared UI block first or let `shadcn` resolve it fr
   the internal `PUBLIC_FA_MEDIA_*` form consumed by the provider config.
 - All view labels are props with English defaults — pass your own i18n strings to localize.
 
+## Error boundaries
+
+Every React island root this plugin mounts — `LibraryView`, `ObjectDetailView`,
+`UploadView`, `PresetsView` and `AdminMediaView` — is wrapped in an error
+boundary. A throw inside a view renders the canonical `astro-ui-m8` error state
+in place of that island rather than tearing it down and leaving a blank region
+on the host page. Nothing is required of the host to get this.
+
+## Dev preview gallery
+
+`npm run preview:dev` serves a development-only `/_preview` gallery that mounts
+every shipped island against an in-memory stand-in for `media-service-m8`. Only
+`fetch` is replaced, so the views, hooks, API wrappers and Zod schemas you see
+are the shipped ones rather than a picture of a mock; one panel deliberately
+throws to show the error boundary. The gallery lives in `fixtures/` and is not
+part of the published tarball.
+
 ## Commands
 
 - `npm run build` — `tsc` → `dist/` + `npm run build:registry`
 - `npm run build:registry` — regenerate `registry/r/*.json` from `registry.json`
 - `npm run typecheck` — `tsc --noEmit`
 - `npm test` — Vitest with coverage (100% on the non-React runtime)
+- `npm run preview:dev` / `npm run preview:build` — the dev-only `/_preview` gallery
 
 [`media-service-m8`]: https://github.com/mano8/media-service-m8

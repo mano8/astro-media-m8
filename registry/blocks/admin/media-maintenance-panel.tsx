@@ -23,6 +23,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StateError } from "@/components/m8-ui/state-error";
 import { StateUnauthorized } from "@/components/m8-ui/state-unauthorized";
+import {
+  ToastNotificationHost,
+  toastNotification,
+} from "@/components/m8-ui/toast-notification";
+
+// Bottom-right toast host + helpers for media admin mutation feedback (`H7`):
+// mount the host once in the panel and call `mediaToast.success/error` from
+// each danger-zone action's own callback, matching the shared pattern already
+// used by `astro-auth-m8`'s `AccountToastHost`/`accountToast` and
+// `astro-reparto-m8`'s toast adoption.
+export function MediaToastHost() {
+  return <ToastNotificationHost position="bottom-right" />;
+}
+export const mediaToast = toastNotification;
 
 export interface MediaMaintenanceLabels {
   title: string;
@@ -91,11 +105,11 @@ function DangerAction({
     try {
       await run();
       setState({ status: "done", message: labels.done });
+      mediaToast.success({ title, description: labels.done });
     } catch (err) {
-      setState({
-        status: "error",
-        message: err instanceof Error ? err.message : labels.error,
-      });
+      const message = err instanceof Error ? err.message : labels.error;
+      setState({ status: "error", message });
+      mediaToast.error({ title, description: message });
     }
   };
 
@@ -104,14 +118,6 @@ function DangerAction({
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-medium">{title}</p>
         <p className="text-sm text-muted-foreground">{description}</p>
-        {state.status === "done" ? (
-          <p className="text-sm text-emerald-600">{state.message}</p>
-        ) : null}
-        {state.status === "error" ? (
-          <p className="text-sm text-destructive" role="alert">
-            {state.message}
-          </p>
-        ) : null}
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
@@ -169,6 +175,7 @@ export function MediaMaintenancePanel({ labels }: MediaMaintenancePanelProps) {
 
   return (
     <Card className="not-content border-destructive/40">
+      <MediaToastHost />
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base text-destructive">
           <AlertTriangle className="size-4" />

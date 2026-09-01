@@ -14,6 +14,7 @@ import * as shares from "../src/runtime/api/shares.js";
 import * as categories from "../src/runtime/api/categories.js";
 import * as dashboard from "../src/runtime/api/dashboard.js";
 import * as admin from "../src/runtime/api/admin.js";
+import * as transfer from "../src/runtime/api/transfer.js";
 import * as index from "../src/runtime/api/index.js";
 import { ApiError } from "../src/runtime/errors.js";
 
@@ -194,19 +195,26 @@ describe("shares API", () => {
 });
 
 describe("categories API (legacy base)", () => {
-  it("list (default + args), get, create, update, delete", async () => {
+  it("list (default + args), tree, get, create, update, delete", async () => {
     await categories.listCategories();
     expect(lastOptions()).toMatchObject({ base: "legacy", path: "/category/", query: { skip: 0, limit: 100 } });
     await categories.listCategories(5, 10);
     expect(lastOptions().query).toEqual({ skip: 5, limit: 10 });
+    await categories.getCategoryTree();
+    expect(lastOptions()).toMatchObject({ base: "legacy", method: "GET", path: "/category/tree/" });
     await categories.getCategory(3);
     expect(lastOptions().path).toBe("/category/get/3/");
-    await categories.createCategory({ name: "n" });
-    expect(lastOptions()).toMatchObject({ method: "POST", path: "/category/add/" });
-    await categories.updateCategory(3, { name: "n2" });
-    expect(lastOptions()).toMatchObject({ method: "PUT", path: "/category/edit/3/" });
+    await categories.createCategory({ name: "n", parent_id: 7 });
+    expect(lastOptions()).toMatchObject({ method: "POST", path: "/category/add/", body: { name: "n", parent_id: 7 } });
+    await categories.updateCategory(3, { name: "n2", parent_id: null });
+    expect(lastOptions()).toMatchObject({
+      method: "PUT",
+      path: "/category/edit/3/",
+      body: { name: "n2", parent_id: null }
+    });
     await categories.deleteCategory(3);
     expect(lastOptions()).toMatchObject({ method: "DELETE", path: "/category/delete/3/" });
+    expect(lastOptions().schema).toBeUndefined();
   });
 });
 
@@ -244,6 +252,43 @@ describe("admin API", () => {
   });
 });
 
+describe("transfer API", () => {
+  it("startExport (manifest, archive), getExportJob, startImport", async () => {
+    await transfer.startExport("manifest", { category: "asset" });
+    expect(lastOptions()).toMatchObject({
+      method: "POST",
+      path: "/export",
+      body: { format: "manifest", filters: { category: "asset" } },
+      auth: true
+    });
+    await transfer.startExport("archive");
+    expect(lastOptions()).toMatchObject({
+      method: "POST",
+      path: "/export",
+      body: { format: "archive", filters: undefined }
+    });
+    await transfer.getExportJob("j 1");
+    expect(lastOptions()).toMatchObject({ method: "GET", path: "/export/j%201" });
+
+    const file = new File(["{}"], "manifest.json", { type: "application/json" });
+    await transfer.startImport("manifest", file);
+    const importOptions = lastOptions();
+    expect(importOptions).toMatchObject({ method: "POST", path: "/import", auth: true });
+    expect(importOptions.body).toBeInstanceOf(FormData);
+    expect(importOptions.body.get("format")).toBe("manifest");
+    expect(importOptions.body.get("file")).toStrictEqual(file);
+  });
+
+  it("startImport names a non-File blob 'import'", async () => {
+    const blob = new Blob(["PK"], { type: "application/zip" });
+    await transfer.startImport("archive", blob);
+    const options = lastOptions();
+    const uploaded = options.body.get("file");
+    expect(uploaded).toBeInstanceOf(Blob);
+    expect((uploaded as File).name ?? "import").toBe("import");
+  });
+});
+
 describe("api index namespaces", () => {
   it("wires grouped namespaces to the flat functions", async () => {
     expect(index.uploads.initiate).toBe(uploads.initiateUpload);
@@ -251,8 +296,12 @@ describe("api index namespaces", () => {
     expect(index.variants.waitForJob).toBe(variants.waitForVariantJob);
     expect(index.presets.create).toBe(presets.createPreset);
     expect(index.shares.resolve).toBe(shares.resolveShare);
+    expect(index.categories.tree).toBe(categories.getCategoryTree);
     expect(index.categories.update).toBe(categories.updateCategory);
     expect(index.dashboard.activityCurrent).toBe(dashboard.getActivityCurrent);
     expect(index.admin.repairOrphans).toBe(admin.repairOrphans);
+    expect(index.transfer.startExport).toBe(transfer.startExport);
+    expect(index.transfer.getExportJob).toBe(transfer.getExportJob);
+    expect(index.transfer.startImport).toBe(transfer.startImport);
   });
 });

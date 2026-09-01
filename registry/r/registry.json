@@ -26,6 +26,24 @@
       "type": "registry:component",
       "title": "Admin Media Dashboard",
       "description": "Media admin view whose first/landing tab is the storage dashboard and whose destructive ops live in a guarded Maintenance tab; wraps the package's MediaProvider + RequireSuperuser. Requires @mano8/astro-media-m8 (and a fa-auth-m8 token adapter) installed."
+    },
+    {
+      "name": "media-category-tree",
+      "type": "registry:component",
+      "title": "Media Category Tree",
+      "description": "shadcn skin over astro-ui-m8's generic tree-view for the nested user category tree, with All/Uncategorized pseudo-nodes, driven by the package's useCategoryTree hook. Requires @mano8/astro-media-m8 installed."
+    },
+    {
+      "name": "media-library-tree",
+      "type": "registry:component",
+      "title": "Media Library Tree View",
+      "description": "Two-pane documents tree view: media-category-tree (left) paired with astro-ui-m8's data-table (right), scoped to the selected branch via the package's useMediaObjects hook. Requires @mano8/astro-media-m8 installed."
+    },
+    {
+      "name": "media-transfer-dialog",
+      "type": "registry:component",
+      "title": "Media Import / Export Dialog",
+      "description": "shadcn dialog skin for the media transfer hooks. It composes astro-ui-m8's dialog-form and data-table recipes, and forwards active filters such as a selected category branch. Requires @mano8/astro-media-m8 installed."
     }
   ]
 }

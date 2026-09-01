@@ -1,213 +1,135 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { deleteObject } from "../api/objects.js";
-import { useDownloadUrl } from "../hooks/useDownloadUrl.js";
 import { useMediaObjects } from "../hooks/useMediaObjects.js";
+import { MediaUploadDropzone, type MediaUploadDropzoneLabels } from "./MediaUploadDropzone.js";
+import { MediaCategoryTreePane } from "./MediaCategoryTreePane.js";
+import {
+  MediaObjectActions,
+  MediaObjectMeta,
+  MediaObjectName,
+  MediaObjectPreview,
+  MediaObjectTable
+} from "./MediaObjectViews.js";
+import { MediaTransferPanel } from "./MediaTransferPanel.js";
+import {
+  branchListParams,
+  exportBranchLabel,
+  initialBranchSelection,
+  type CategoryBranchSelection
+} from "./categoryBranch.js";
+import { DEFAULT_LABELS, type MediaLibraryLabels, type MediaLibraryView } from "./mediaLibraryLabels.js";
+import {
+  activeViewButtonStyle,
+  buttonClassName,
+  cardBodyClassName,
+  cardClassName,
+  cardMetaClassName,
+  cardTitleClassName,
+  filterRowClassName,
+  gridClassName,
+  inputClassName,
+  masonryClassName,
+  titleRowClassName,
+  toolbarActionsClassName,
+  treeLayoutClassName,
+  treeResultsClassName,
+  viewButtonClassName,
+  viewSwitcherClassName
+} from "./mediaLibraryStyles.js";
 import type { MediaCategory, MediaObjectPublic, MediaObjectStatus, ObjectListParams } from "../schemas.js";
 
-type MediaLibraryView = "list" | "grid" | "masonry";
+export type { MediaLibraryLabels };
 
-type PreviewLoading = {
-  loading: "eager" | "lazy";
-  fetchPriority: "high" | "low";
-};
-
-const STATUS_OPTIONS: ReadonlyArray<{ value: MediaObjectStatus; label: string }> = [
-  { value: "pending_upload", label: "Pending" },
-  { value: "uploaded", label: "Uploaded" },
-  { value: "processing", label: "Processing" },
-  { value: "ready", label: "Ready" },
-  { value: "failed", label: "Failed" },
-  { value: "deleted", label: "Deleted" },
-  { value: "rejected", label: "Rejected" }
+const STATUS_OPTIONS: readonly MediaObjectStatus[] = [
+  "pending_upload",
+  "uploaded",
+  "processing",
+  "ready",
+  "failed",
+  "deleted",
+  "rejected"
 ];
-const inputClassName =
-  "fa-media-control h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40";
-
-const VIEW_OPTIONS: ReadonlyArray<{ value: MediaLibraryView; label: string }> = [
-  { value: "list", label: "List" },
-  { value: "grid", label: "Grid" },
-  { value: "masonry", label: "Masonry" }
-];
-const titleRowClassName = "fa-media-title-row flex w-full flex-wrap items-center justify-between gap-3";
-const filterRowClassName = "fa-media-filter-row flex w-full flex-col gap-3 md:flex-row md:items-center";
-const viewSwitcherClassName =
-  "fa-media-view-switcher inline-flex shrink-0 rounded-lg border border-input bg-transparent p-0.5";
-const viewButtonClassName =
-  "fa-media-view-button min-h-7 rounded-md border-0 bg-transparent px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-pressed:bg-foreground aria-pressed:text-background";
-const previewClassName =
-  "fa-media-preview block aspect-square h-14 w-14 rounded-md border border-border bg-muted object-cover text-xs font-medium text-muted-foreground";
-const previewPlaceholderClassName = `${previewClassName} grid place-items-center px-1 text-center`;
-const gridClassName = "fa-media-cards fa-media-cards--grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-const masonryClassName = "fa-media-cards fa-media-cards--masonry columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4";
-const cardClassName =
-  "fa-media-card mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border bg-card text-card-foreground";
-const cardPreviewClassName = "h-auto w-full rounded-none border-0";
-const cardBodyClassName = "fa-media-card-body grid gap-2 p-3";
-const cardTitleClassName = "m-0 truncate text-sm font-medium leading-5";
-const cardMetaClassName = "fa-media-card-meta flex flex-wrap items-center gap-2 text-xs text-muted-foreground";
-const itemActionsClassName = "fa-media-item-actions flex flex-wrap items-center gap-2";
-const actionLinkClassName = "fa-media-action-link inline-flex min-h-8 items-center rounded-lg border px-3 py-1 text-sm font-medium";
-const listPreviewStyle: CSSProperties = {
-  aspectRatio: "1 / 1",
-  borderRadius: "0.375rem",
-  height: "clamp(4rem, 12vw, 8rem)",
-  maxHeight: "8rem",
-  maxWidth: "8rem",
-  objectFit: "cover",
-  width: "clamp(4rem, 12vw, 8rem)"
-};
-const activeViewButtonStyle: CSSProperties = {
-  background: "var(--fa-media-active-bg, var(--foreground, CanvasText))",
-  borderColor: "var(--fa-media-active-bg, var(--foreground, CanvasText))",
-  color: "var(--fa-media-active-fg, var(--background, Canvas))"
-};
-
-function isImage(object: MediaObjectPublic): boolean {
-  return object.mime_type.toLowerCase().startsWith("image/");
-}
-
-function previewLoadingFor(view: MediaLibraryView, index: number): PreviewLoading {
-  if (view === "list") return { loading: "lazy", fetchPriority: "low" };
-  if (view === "grid" && index < 6) return { loading: "eager", fetchPriority: "high" };
-  if (view === "masonry" && index < 4) return { loading: "eager", fetchPriority: "high" };
-  return { loading: "lazy", fetchPriority: "low" };
-}
-
-function objectLabel(object: MediaObjectPublic): string {
-  return object.original_filename ?? object.id;
-}
-
-function humanizeBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = bytes / 1024;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units.at(unitIndex) ?? "TB"}`;
-}
-
-function statusLabel(status: MediaObjectStatus): string {
-  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
-}
-
-function MediaObjectPreview({
-  object,
-  view,
-  index
-}: {
-  object: MediaObjectPublic;
-  view: MediaLibraryView;
-  index: number;
-}) {
-  const { data, loading, error, request } = useDownloadUrl(isImage(object) ? object.id : null);
-  const loadingMode = previewLoadingFor(view, index);
-
-  useEffect(() => {
-    if (!isImage(object) || data || loading || error) return;
-    void request();
-  }, [data, error, loading, object, request]);
-
-  if (!isImage(object)) {
-    return (
-      <span
-        className={`${previewPlaceholderClassName} fa-media-preview--file`}
-        style={view === "list" ? listPreviewStyle : undefined}
-        aria-hidden="true"
-      >
-        {object.extension ?? "file"}
-      </span>
-    );
-  }
-
-  if (!data) {
-    return (
-      <span
-        className={`${previewPlaceholderClassName} fa-media-preview--loading`}
-        style={view === "list" ? listPreviewStyle : undefined}
-        aria-label={`${objectLabel(object)} preview loading`}
-      >
-        {loading ? "Loading" : "Preview"}
-      </span>
-    );
-  }
-
-  return (
-    <img
-      className={view === "list" ? previewClassName : `${previewClassName} ${cardPreviewClassName}`}
-      src={data.url}
-      alt={objectLabel(object)}
-      style={view === "list" ? listPreviewStyle : undefined}
-      width={view === "list" ? 128 : undefined}
-      height={view === "list" ? 128 : undefined}
-      loading={loadingMode.loading}
-      decoding="async"
-      fetchPriority={loadingMode.fetchPriority}
-    />
-  );
-}
-
-function MediaObjectName({ object, objectHref }: { object: MediaObjectPublic; objectHref?: (id: string) => string }) {
-  const label = objectLabel(object);
-  return objectHref ? <a href={objectHref(object.id)}>{label}</a> : label;
-}
-
-function MediaObjectMeta({ object }: { object: MediaObjectPublic }) {
-  return (
-    <>
-      <span>{object.category}</span>
-      <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
-      <span>{humanizeBytes(object.size_bytes)}</span>
-    </>
-  );
-}
-
-function MediaObjectActions({
-  object,
-  objectHref,
-  deletingId,
-  onDelete
-}: {
-  object: MediaObjectPublic;
-  objectHref?: (id: string) => string;
-  deletingId: string | null;
-  onDelete: (object: MediaObjectPublic) => Promise<void>;
-}) {
-  const label = objectLabel(object);
-  const href = objectHref?.(object.id);
-
-  return (
-    <div className={itemActionsClassName}>
-      {href ? (
-        <a className={actionLinkClassName} href={href} aria-label={`View ${label}`}>
-          View
-        </a>
-      ) : null}
-      <button type="button" className="fa-media-danger" disabled={deletingId === object.id} onClick={() => void onDelete(object)}>
-        Delete
-      </button>
-    </div>
-  );
-}
+const VIEW_OPTIONS: readonly MediaLibraryView[] = ["list", "grid", "masonry", "tree"];
 
 export function MediaLibrary({
   objectHref,
-  initial = {}
+  initial = {},
+  initialUploadOpen = false,
+  labels: labelOverrides
 }: {
   objectHref?: (id: string) => string;
   initial?: ObjectListParams;
+  /** Open the library's upload dialog on first render (legacy upload routes). */
+  initialUploadOpen?: boolean;
+  labels?: Partial<Omit<MediaLibraryLabels, "views" | "categories" | "statuses" | "tree" | "transfer" | "upload">> & {
+    views?: Partial<MediaLibraryLabels["views"]>;
+    categories?: Partial<MediaLibraryLabels["categories"]>;
+    statuses?: Partial<MediaLibraryLabels["statuses"]>;
+    tree?: Partial<MediaLibraryLabels["tree"]>;
+    transfer?: Partial<MediaLibraryLabels["transfer"]>;
+    upload?: Partial<Omit<MediaLibraryLabels["upload"], "form">> & {
+      form?: Partial<MediaUploadDropzoneLabels>;
+    };
+  };
 }) {
+  const labels: MediaLibraryLabels = useMemo(
+    () => ({
+      ...DEFAULT_LABELS,
+      ...labelOverrides,
+      views: { ...DEFAULT_LABELS.views, ...labelOverrides?.views },
+      categories: { ...DEFAULT_LABELS.categories, ...labelOverrides?.categories },
+      statuses: { ...DEFAULT_LABELS.statuses, ...labelOverrides?.statuses },
+      tree: { ...DEFAULT_LABELS.tree, ...labelOverrides?.tree },
+      transfer: { ...DEFAULT_LABELS.transfer, ...labelOverrides?.transfer },
+      upload: {
+        ...DEFAULT_LABELS.upload,
+        ...labelOverrides?.upload,
+        form: { ...DEFAULT_LABELS.upload.form, ...labelOverrides?.upload?.form }
+      }
+    }),
+    [labelOverrides]
+  );
   const [query, setQuery] = useState<ObjectListParams>(initial);
   const [view, setView] = useState<MediaLibraryView>("list");
+  // Which branch the tree pane has selected. It is kept beside `query` rather
+  // than derived from it because "all" and an absent branch filter are the same
+  // params but not the same pane state.
+  const [branchSelection, setBranchSelection] = useState<CategoryBranchSelection>(() =>
+    initialBranchSelection(initial)
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(initialUploadOpen);
+  const uploadCloseRef = useRef<HTMLButtonElement>(null);
   const { items, count, loading, error, hasMore, refresh, loadMore } = useMediaObjects(query);
+
+  useEffect(() => {
+    if (!uploadOpen) return;
+
+    const previousActive = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    uploadCloseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setUploadOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      previousActive?.focus();
+    };
+  }, [uploadOpen]);
+
+  /**
+   * Patches the branch params onto `query` rather than replacing it, so the
+   * toolbar's search / enum category / status filters stay live and compose
+   * with the selected branch.
+   */
+  function handleBranchSelect(selection: CategoryBranchSelection) {
+    setBranchSelection(selection);
+    setQuery((prev) => ({ ...prev, ...branchListParams(selection) }));
+  }
 
   async function handleDelete(object: MediaObjectPublic) {
     setActionError(null);
@@ -216,7 +138,7 @@ export function MediaLibrary({
       await deleteObject(object.id);
       await refresh();
     } catch {
-      setActionError("Failed to delete media");
+      setActionError(labels.deleteError);
     } finally {
       setDeletingId(null);
     }
@@ -226,27 +148,43 @@ export function MediaLibrary({
     <section className="not-content fa-media-panel">
       <header className="fa-media-toolbar">
         <div className={titleRowClassName}>
-          <h2>Media library ({count})</h2>
-          <div className={viewSwitcherClassName} aria-label="Media library view">
-            {VIEW_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={view === value}
-                className={viewButtonClassName}
-                style={view === value ? activeViewButtonStyle : undefined}
-                onClick={() => setView(value)}
-              >
-                {label}
-              </button>
-            ))}
+          <h2>{labels.title} ({count})</h2>
+          <div className={toolbarActionsClassName}>
+            <div className={viewSwitcherClassName} aria-label={labels.viewLabel}>
+              {VIEW_OPTIONS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={view === value}
+                  className={viewButtonClassName}
+                  style={view === value ? activeViewButtonStyle : undefined}
+                  onClick={() => setView(value)}
+                >
+                  {labels.views[value]}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={buttonClassName}
+              aria-pressed={transferOpen}
+              aria-expanded={transferOpen}
+              aria-controls="fa-media-transfer-panel"
+              onClick={() => setTransferOpen((open) => !open)}
+            >
+              {labels.importExport}
+            </button>
+            <button type="button" className={buttonClassName} onClick={() => setUploadOpen(true)}>
+              {labels.uploadMedia}
+            </button>
           </div>
         </div>
         <div className={filterRowClassName}>
           <input
             className={inputClassName}
             type="search"
-            placeholder="Search filename"
+            aria-label={labels.searchLabel}
+            placeholder={labels.searchPlaceholder}
             onChange={(event) => {
               const q = event.currentTarget.value || undefined;
               setQuery((prev) => ({ ...prev, q }));
@@ -259,10 +197,10 @@ export function MediaLibrary({
               setQuery((prev) => ({ ...prev, category }));
             }}
           >
-            <option value="">All categories</option>
+            <option value="">{labels.allCategories}</option>
             {(["avatar", "document", "asset", "chat_attachment", "export", "receipt"] as MediaCategory[]).map((value) => (
               <option key={value} value={value}>
-                {value}
+                {labels.categories[value]}
               </option>
             ))}
           </select>
@@ -273,72 +211,101 @@ export function MediaLibrary({
               setQuery((prev) => ({ ...prev, status }));
             }}
           >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map(({ value, label }) => (
+            <option value="">{labels.allStatuses}</option>
+            {STATUS_OPTIONS.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {labels.statuses[value]}
               </option>
             ))}
           </select>
         </div>
       </header>
-      {error ? <p role="alert">Failed to load media</p> : null}
+      {transferOpen ? (
+        <div id="fa-media-transfer-panel">
+          <MediaTransferPanel
+            filters={query}
+            exportScopeLabel={view === "tree" ? exportBranchLabel(branchSelection, labels.tree) : undefined}
+            labels={labels.transfer}
+          />
+        </div>
+      ) : null}
+      {uploadOpen ? (
+        <div
+          className="fa-media-dialog-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setUploadOpen(false);
+          }}
+        >
+          <div
+            className="fa-media-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fa-media-upload-dialog-title"
+          >
+            <header className="fa-media-dialog-header">
+              <h2 id="fa-media-upload-dialog-title">{labels.upload.title}</h2>
+              <button ref={uploadCloseRef} type="button" aria-label={labels.upload.closeLabel} onClick={() => setUploadOpen(false)}>
+                {labels.upload.close}
+              </button>
+            </header>
+            <MediaUploadDropzone
+              heading={false}
+              labels={labels.upload.form}
+              onUploaded={() => {
+                setUploadOpen(false);
+                void refresh();
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+      {error ? <p role="alert">{labels.loadError}</p> : null}
       {actionError ? <p role="alert">{actionError}</p> : null}
-      {view === "list" ? (
-        <table className="fa-media-table">
-          <thead>
-            <tr>
-              <th>Preview</th>
-              <th>Filename</th>
-              <th>Actions</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Size</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((object, index) => (
-              <tr key={object.id}>
-                <td>
-                  <MediaObjectPreview object={object} view={view} index={index} />
-                </td>
-                <td>
-                  <MediaObjectName object={object} objectHref={objectHref} />
-                </td>
-                <td>
-                  <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} />
-                </td>
-                <td>{object.category}</td>
-                <td>
-                  <span className={`fa-media-badge fa-media-badge--${object.status}`}>{statusLabel(object.status)}</span>
-                </td>
-                <td>{humanizeBytes(object.size_bytes)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {view === "tree" ? (
+        <div className={treeLayoutClassName}>
+          <MediaCategoryTreePane selection={branchSelection} onSelect={handleBranchSelect} labels={labels.tree} />
+          <div className={treeResultsClassName}>
+            <MediaObjectTable
+              items={items}
+              view={view}
+              objectHref={objectHref}
+              deletingId={deletingId}
+              onDelete={handleDelete}
+              labels={labels}
+            />
+          </div>
+        </div>
+      ) : view === "list" ? (
+        <MediaObjectTable
+          items={items}
+          view={view}
+          objectHref={objectHref}
+          deletingId={deletingId}
+          onDelete={handleDelete}
+          labels={labels}
+        />
       ) : (
         <div className={view === "grid" ? gridClassName : masonryClassName}>
           {items.map((object, index) => (
             <article className={cardClassName} key={object.id}>
-              <MediaObjectPreview object={object} view={view} index={index} />
+              <MediaObjectPreview object={object} view={view} index={index} labels={labels} />
               <div className={cardBodyClassName}>
                 <h3 className={cardTitleClassName}>
                   <MediaObjectName object={object} objectHref={objectHref} />
                 </h3>
                 <div className={cardMetaClassName}>
-                  <MediaObjectMeta object={object} />
+                  <MediaObjectMeta object={object} labels={labels} />
                 </div>
-                <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} />
+                <MediaObjectActions object={object} objectHref={objectHref} deletingId={deletingId} onDelete={handleDelete} labels={labels} />
               </div>
             </article>
           ))}
         </div>
       )}
-      {loading ? <p>Loading...</p> : null}
+      {loading ? <p>{labels.loading}</p> : null}
       {hasMore ? (
         <button type="button" disabled={loading} onClick={() => void loadMore()}>
-          Load more
+          {labels.loadMore}
         </button>
       ) : null}
     </section>

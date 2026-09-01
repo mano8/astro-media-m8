@@ -56,6 +56,7 @@ export type FaMediaAstroOptions = {
 const ROUTE_ENTRYPOINTS = {
   upload: "@mano8/astro-media-m8/routes/upload.astro",
   library: "@mano8/astro-media-m8/routes/library.astro",
+  categories: "@mano8/astro-media-m8/routes/categories.astro",
   object: "@mano8/astro-media-m8/routes/object/[id].astro",
   presets: "@mano8/astro-media-m8/routes/presets.astro",
   admin: "@mano8/astro-media-m8/routes/admin/media.astro"

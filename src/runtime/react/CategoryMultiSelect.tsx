@@ -1,0 +1,430 @@
+import { useCallback, useMemo, useState } from "react";
+import { useCategoryTree } from "../hooks/useMediaCategories.js";
+import { ApiError, messageFromDetail } from "../errors.js";
+import type { CategoryNode } from "../schemas.js";
+
+const labelClassName =
+  "fa-media-label flex items-center gap-2 text-sm leading-none font-medium select-none";
+
+/**
+ * A resolved selection entry: the category id plus the slash-joined name path
+ * used as chip copy (`"Invoices / 2026"`), mirroring the server's
+ * `MediaObjectCategoryRef.path`.
+ */
+export type CategoryPathOption = {
+  id: number;
+  name: string;
+  path: string;
+};
+
+/**
+ * Flatten a nested tree into an id -> `{name, path}` map. Kept as a `Map` (not
+ * a plain object) so a lookup never becomes computed member access on a
+ * server-supplied key — `eslint-plugin-security`'s object-injection rule is on
+ * here, and a `Map` is the right structure for a numeric key anyway.
+ */
+export function collectCategoryPaths(
+  nodes: readonly CategoryNode[],
+  prefix = "",
+  into: Map<number, CategoryPathOption> = new Map()
+): Map<number, CategoryPathOption> {
+  for (const node of nodes) {
+    const path = prefix ? `${prefix} / ${node.name}` : node.name;
+    into.set(node.id, { id: node.id, name: node.name, path });
+    collectCategoryPaths(node.children, path, into);
+  }
+  return into;
+}
+
+/**
+ * Compare two `category_ids` selections as sets, so a caller can tell "the user
+ * changed the filing" from "the user toggled one off and back on". Exported
+ * because `ObjectDetail` needs exactly this to drive its dirty state, and
+ * because `PATCH` set semantics (`U4`) make order meaningless on the wire.
+ */
+export function isSameCategorySelection(left: readonly number[], right: readonly number[]): boolean {
+  if (left.length !== right.length) return false;
+  const seen = new Set(right);
+  return left.every((id) => seen.has(id));
+}
+
+function hasSelectedDescendant(nodes: readonly CategoryNode[], selected: ReadonlySet<number>): boolean {
+  return nodes.some((node) => selected.has(node.id) || hasSelectedDescendant(node.children, selected));
+}
+
+/**
+ * Everything a branch needs that is identical for every branch in one picker.
+ * Carried as one object rather than seven props so a nested render passes the
+ * context straight down instead of re-threading each field at every level.
+ */
+type BranchContext = {
+  idPrefix: string;
+  selected: ReadonlySet<number>;
+  collapsed: ReadonlySet<number>;
+  disabled: boolean;
+  onToggleSelected: (id: number) => void;
+  onToggleCollapsed: (id: number) => void;
+  labels: CategoryMultiSelectLabels;
+};
+
+type BranchProps = {
+  node: CategoryNode;
+  depth: number;
+  ctx: BranchContext;
+};
+
+export interface CategoryMultiSelectLabels {
+  legend: string;
+  emptyHint: string;
+  expand: (name: string) => string;
+  collapse: (name: string) => string;
+  descendantSelected: string;
+  loadError: string;
+  loading: string;
+  selected: string;
+  remove: (path: string) => string;
+  clearAll: string;
+  noneSelected: string;
+}
+
+const DEFAULT_LABELS: CategoryMultiSelectLabels = {
+  legend: "User categories (optional)",
+  emptyHint: "No user categories yet. Create one from the category manager to file media here.",
+  expand: (name) => `Expand ${name}`,
+  collapse: (name) => `Collapse ${name}`,
+  descendantSelected: "A category below this one is selected",
+  loadError: "Failed to load categories",
+  loading: "Loading categories…",
+  selected: "Selected categories",
+  remove: (path) => `Remove ${path}`,
+  clearAll: "Clear all",
+  noneSelected: "No user categories selected."
+};
+
+/**
+ * One tree row plus its subtree.
+ *
+ * The picker is a **form control**, not the navigation tree `U6`/`U7` own, so
+ * it is built from native checkboxes inside nested lists rather than
+ * `role="tree"` + roving tabindex: a native checkbox already carries focus,
+ * keyboard toggling and checked-state announcements, and layering a
+ * single-selection tree pattern over it would take those away. Nesting and
+ * depth stay conveyable through plain nested `<ul>`s plus `aria-level` — the
+ * list role is left implicit on purpose, since an explicit `role="group"` on
+ * the `<ul>` would cost its `<li>` children the `listitem` role that
+ * `aria-level` is defined against.
+ *
+ * Selection does **not** cascade to children. The server stores an explicit set
+ * of assignments (`U4` set semantics), so checking "Invoices" must not silently
+ * file the object into "Invoices / 2026"; a collapsed-or-not branch holding a
+ * selected descendant is marked with a dot instead.
+ */
+function BranchToggle({ node, ctx, groupId }: { node: CategoryNode; ctx: BranchContext; groupId: string }) {
+  if (node.children.length === 0) {
+    return <span className="fa-media-category-toggle-spacer" aria-hidden="true" />;
+  }
+
+  const isCollapsed = ctx.collapsed.has(node.id);
+  return (
+    <button
+      type="button"
+      className="fa-media-category-toggle"
+      aria-expanded={!isCollapsed}
+      aria-controls={groupId}
+      aria-label={isCollapsed ? ctx.labels.expand(node.name) : ctx.labels.collapse(node.name)}
+      onClick={() => ctx.onToggleCollapsed(node.id)}
+    >
+      {isCollapsed ? "▸" : "▾"}
+    </button>
+  );
+}
+
+function BranchCheckbox({ node, ctx }: { node: CategoryNode; ctx: BranchContext }) {
+  const inputId = `${ctx.idPrefix}-node-${node.id}`;
+  const descendantSelected =
+    node.children.length > 0 &&
+    !ctx.selected.has(node.id) &&
+    hasSelectedDescendant(node.children, ctx.selected);
+
+  return (
+    <label className={labelClassName} htmlFor={inputId}>
+      <input
+        id={inputId}
+        type="checkbox"
+        checked={ctx.selected.has(node.id)}
+        disabled={ctx.disabled}
+        onChange={() => ctx.onToggleSelected(node.id)}
+      />
+      <span className="fa-media-category-name">{node.name}</span>
+      {descendantSelected ? (
+        <span className="fa-media-category-marker" title={ctx.labels.descendantSelected}>
+          {"•"}
+        </span>
+      ) : null}
+      <span className="fa-media-badge fa-media-category-count">{node.total_object_count}</span>
+    </label>
+  );
+}
+
+function CategoryBranch({ node, depth, ctx }: BranchProps) {
+  const hasChildren = node.children.length > 0;
+  const groupId = `${ctx.idPrefix}-group-${node.id}`;
+
+  return (
+    <li className="fa-media-category-node" aria-level={depth}>
+      <div className="fa-media-category-row">
+        <BranchToggle node={node} ctx={ctx} groupId={groupId} />
+        <BranchCheckbox node={node} ctx={ctx} />
+      </div>
+      {hasChildren && !ctx.collapsed.has(node.id) ? (
+        <ul id={groupId} className="fa-media-category-children">
+          {node.children.map((child) => (
+            <CategoryBranch key={child.id} node={child} depth={depth + 1} ctx={ctx} />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+export type CategoryMultiSelectViewProps = {
+  /** The currently selected user-category ids — the `category_ids` payload. */
+  value: readonly number[];
+  onChange: (next: number[]) => void;
+  tree: readonly CategoryNode[];
+  loading?: boolean;
+  error?: unknown;
+  disabled?: boolean;
+  /** Fieldset legend; the picker is optional everywhere it is used today. */
+  legend?: string;
+  /** Copy shown when the caller has no user categories yet. */
+  emptyHint?: string;
+  /**
+   * Labels for ids that are selected but absent from the tree — e.g. an object
+   * filed into a category the tree request has not resolved yet. Keeps a chip
+   * from degrading to a bare id.
+   */
+  fallbackLabels?: ReadonlyMap<number, string>;
+  /** Prefix for the generated element ids; must be unique per mounted picker. */
+  idPrefix?: string;
+  labels?: Partial<CategoryMultiSelectLabels>;
+};
+
+/**
+ * The picker's only local state: which branches are collapsed. Selection stays
+ * the caller's — `toggleSelected` reports the next set rather than storing it —
+ * so the control remains fully controlled (`U4` set semantics).
+ */
+function usePickerState(value: readonly number[], onChange: (next: number[]) => void) {
+  const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(() => new Set<number>());
+  const selected = useMemo(() => new Set(value), [value]);
+
+  const toggleSelected = useCallback(
+    (id: number) => {
+      onChange(value.includes(id) ? value.filter((current) => current !== id) : [...value, id]);
+    },
+    [onChange, value]
+  );
+
+  const toggleCollapsed = useCallback((id: number) => {
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }, []);
+
+  return { collapsed, selected, toggleSelected, toggleCollapsed };
+}
+
+/**
+ * Presentational multi-select nested category picker: a checkbox tree plus a
+ * chip list of the current selection. Fully controlled — it holds no selection
+ * state of its own, only expand/collapse.
+ */
+export function CategoryMultiSelectView(props: CategoryMultiSelectViewProps) {
+  const {
+    value,
+    onChange,
+    tree,
+    loading = false,
+    error = null,
+    disabled = false,
+    legend,
+    emptyHint,
+    fallbackLabels,
+    idPrefix = "fa-media-categories",
+    labels: labelOverrides
+  } = props;
+  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+  const { collapsed, selected, toggleSelected, toggleCollapsed } = usePickerState(value, onChange);
+  const paths = useMemo(() => collectCategoryPaths(tree), [tree]);
+  const chips = resolveChips(value, paths, fallbackLabels);
+  const errorMessage = resolveErrorMessage(error, labels.loadError);
+  const ctx: BranchContext = {
+    idPrefix,
+    selected,
+    collapsed,
+    disabled,
+    onToggleSelected: toggleSelected,
+    onToggleCollapsed: toggleCollapsed,
+    labels
+  };
+
+  return (
+    <fieldset className="fa-media-category-picker">
+      <legend>{legend ?? labels.legend}</legend>
+
+      <CategoryPickerStatus
+        errorMessage={errorMessage}
+        loading={loading}
+        isEmpty={tree.length === 0}
+        emptyHint={emptyHint ?? labels.emptyHint}
+        loadingLabel={labels.loading}
+      />
+
+      <CategoryTreeList tree={tree} ctx={ctx} />
+
+      <CategorySelection
+        chips={chips}
+        labels={labels}
+        disabled={disabled}
+        onRemove={toggleSelected}
+        onClear={() => onChange([])}
+      />
+    </fieldset>
+  );
+}
+
+/** The root list. Renders nothing at all when the account has no categories. */
+function CategoryTreeList({ tree, ctx }: { tree: readonly CategoryNode[]; ctx: BranchContext }) {
+  if (tree.length === 0) return null;
+  return (
+    <ul className="fa-media-category-tree">
+      {tree.map((node) => (
+        <CategoryBranch key={node.id} node={node} depth={1} ctx={ctx} />
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The picker's three mutually informative status lines: a load error, the
+ * first-load hint while the tree is still resolving, and the "nothing to pick
+ * from" hint. The empty hint stays suppressed while an error is showing, so a
+ * failed request never reads as an empty account.
+ */
+function CategoryPickerStatus({
+  errorMessage,
+  loading,
+  isEmpty,
+  emptyHint,
+  loadingLabel
+}: {
+  errorMessage: string | null;
+  loading: boolean;
+  isEmpty: boolean;
+  emptyHint: string;
+  loadingLabel: string;
+}) {
+  return (
+    <>
+      {errorMessage ? (
+        <p role="alert" className="fa-media-category-error">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      {loading && isEmpty ? <p className="fa-media-category-hint">{loadingLabel}</p> : null}
+
+      {!loading && !errorMessage && isEmpty ? (
+        <p className="fa-media-category-hint">{emptyHint}</p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Resolve each selected id to its chip copy: the tree's slash-joined path when
+ * the tree holds it, the caller's fallback label when it does not, and `#id` as
+ * the last resort so a chip never renders empty.
+ */
+function resolveChips(
+  value: readonly number[],
+  paths: ReadonlyMap<number, CategoryPathOption>,
+  fallbackLabels: ReadonlyMap<number, string> | undefined
+): CategoryPathOption[] {
+  return value.map((id) => {
+    const known = paths.get(id);
+    if (known) return known;
+    const fallback = fallbackLabels?.get(id) ?? `#${id}`;
+    return { id, name: fallback, path: fallback };
+  });
+}
+
+function resolveErrorMessage(error: unknown, loadError: string): string | null {
+  if (!error) return null;
+  const detail = error instanceof ApiError ? messageFromDetail(error.detail) : null;
+  return detail ?? (error instanceof Error ? error.message : loadError);
+}
+
+/** The chip list of the current selection, plus its clear-all action. */
+function CategorySelection({
+  chips,
+  labels,
+  disabled,
+  onRemove,
+  onClear
+}: {
+  chips: readonly CategoryPathOption[];
+  labels: CategoryMultiSelectLabels;
+  disabled: boolean;
+  onRemove: (id: number) => void;
+  onClear: () => void;
+}) {
+  if (chips.length === 0) {
+    return (
+      <div className="fa-media-category-selection">
+        <p className="fa-media-category-hint">{labels.noneSelected}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fa-media-category-selection">
+      <ul className="fa-media-category-chips" aria-label={labels.selected}>
+        {chips.map((chip) => (
+          <li key={chip.id} className="fa-media-badge fa-media-category-chip">
+            <span>{chip.path}</span>
+            <button
+              type="button"
+              className="fa-media-category-chip-remove"
+              aria-label={labels.remove(chip.path)}
+              disabled={disabled}
+              onClick={() => onRemove(chip.id)}
+            >
+              {"×"}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="fa-media-category-clear" disabled={disabled} onClick={onClear}>
+        {labels.clearAll}
+      </button>
+    </div>
+  );
+}
+
+export type CategoryMultiSelectProps = Omit<
+  CategoryMultiSelectViewProps,
+  "tree" | "loading" | "error"
+>;
+
+/**
+ * The picker wired to `useCategoryTree()`. Use this on a page; use
+ * `CategoryMultiSelectView` when the tree is already in hand (or under test).
+ */
+export function CategoryMultiSelect(props: CategoryMultiSelectProps) {
+  const { tree, loading, error } = useCategoryTree();
+  return <CategoryMultiSelectView {...props} tree={tree} loading={loading} error={error} />;
+}

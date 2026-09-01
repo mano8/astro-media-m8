@@ -33,8 +33,14 @@ host source edits outside documented registration points.
 
 - Communicate with `media-service-m8` over HTTP only; never import service code.
 - Publish `@mano8/astro-media-m8` and keep `mediaServiceM8` package metadata,
-  schemas, and compatibility checks aligned with the `media-service-m8@1.0`
-  contract (`>=1.0.0 <2.0.0`).
+  schemas, and compatibility checks aligned with the `media-service-m8@1.1`
+  contract, over the supported service-version range `>=2.0.0 <3.0.0`.
+  The parenthesised range here read `>=1.0.0 <2.0.0` until 2026-09-01 and was
+  wrong twice over: it is a **service**-version range, not a range of contract
+  versions, and its value had been left behind by the 2.x repoint — it excluded
+  every service this package actually admits. `compatibility.ts` and the
+  `mediaServiceM8` block have both read `>=2.0.0 <3.0.0` since that repoint;
+  this line was the outlier.
 - Model public backend responses only; never expose secret or session fields.
 - Export public modules only through explicit `package.json` subpaths.
 
@@ -49,8 +55,8 @@ host source edits outside documented registration points.
 - Require `@mano8/astro-auth-m8` as the official M8 auth peer. Couple only through
   `MediaAuthAdapter` / `createFaAuthAdapter`, wiring it after `faAuth`.
 - `headless` provides schemas, API wrappers, upload control, and the auth adapter
-  without pages; `starter` adds upload, library, object, presets, and admin Astro
-  routes; `scaffolded` uses consumer-owned views.
+  without pages; `starter` adds library (with an upload dialog), category CRUD,
+  object, presets, and admin Astro routes; `scaffolded` uses consumer-owned views.
 - Admin routes and maintenance actions require the admin pre-guard; destructive
   actions belong in focused confirmation panels. The media admin landing view is
   dashboard-oriented.

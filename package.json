@@ -1,6 +1,6 @@
 {
   "name": "@mano8/astro-media-m8",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "Astro integration and headless client for media-service-m8.",
   "type": "module",
   "license": "MIT",
@@ -41,6 +41,7 @@
     "./routes": "./dist/src/runtime/routes.js",
     "./routes/upload.astro": "./src/routes/upload.astro",
     "./routes/library.astro": "./src/routes/library.astro",
+    "./routes/categories.astro": "./src/routes/categories.astro",
     "./routes/object/[id].astro": "./src/routes/object/[id].astro",
     "./routes/presets.astro": "./src/routes/presets.astro",
     "./routes/admin/media.astro": "./src/routes/admin/media.astro",
@@ -52,20 +53,26 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && npm run build:registry",
     "build:registry": "node scripts/build-registry.mjs",
+    "preview:dev": "vite --config fixtures/preview/vite.config.ts",
+    "preview:build": "tsc -p fixtures/preview/tsconfig.json --noEmit && vite build --config fixtures/preview/vite.config.ts",
+    "verify:fleet-gates": "node scripts/verify-fleet-gates.mjs",
+    "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
+    "verify:registry-drift": "node scripts/verify-registry-drift.mjs",
     "verify:starter-routes": "node scripts/verify-starter-routes.mjs",
+    "verify:tarball-install": "node scripts/verify-tarball-install.mjs",
     "test": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint --max-warnings 0 \"src/**/*.{ts,tsx}\"",
+    "lint": "eslint --max-warnings 0 .",
     "test:unit": "vitest run"
   },
   "dependencies": {
-    "@mano8/astro-ui-m8": "^1.4.0"
+    "@mano8/astro-ui-m8": "^1.5.1"
   },
   "peerDependencies": {
     "@astrojs/react": "^6.0.1",
     "@astrojs/starlight": "^0.41.3",
-    "@mano8/astro-auth-m8": "^1.5.0",
-    "@tanstack/react-query": "^5.101.1",
+    "@mano8/astro-auth-m8": "^2.4.1",
+    "@tanstack/react-query": "^5.102.8",
     "astro": "^7.0.9",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
@@ -80,34 +87,35 @@
     }
   },
   "devDependencies": {
-    "@astrojs/react": "^6.0.1",
-    "@astrojs/starlight": "^0.41.3",
-    "@eslint-react/eslint-plugin": "^5.18.0",
+    "@astrojs/react": "^6.0.4",
+    "@astrojs/starlight": "^0.41.10",
+    "@eslint-react/eslint-plugin": "^5.18.6",
     "@eslint/js": "^10.0.1",
-    "@mano8/astro-auth-m8": "^1.5.0",
-    "@tanstack/react-query": "^5.101.1",
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
-    "@vitest/coverage-v8": "^4.1.9",
-    "astro": "^7.0.9",
-    "eslint": "^10.8.0",
+    "@mano8/astro-auth-m8": "^2.4.1",
+    "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-table": "^8.21.3",
+    "@types/node": "^26.4.0",
+    "@types/react": "^19.2.18",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "astro": "^7.2.9",
+    "eslint": "^10.9.1",
     "eslint-plugin-security": "^4.0.1",
-    "globals": "^17.8.0",
-    "jsdom": "^29.1.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "typescript": "^5.8.0",
-    "vitest": "^4.1.9",
-    "zod": "^4.0.0"
+    "globals": "^17.11.0",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
+    "zod": "^4.5.4"
   },
   "overrides": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.2"
   },
   "mediaServiceM8": {
-    "contract": "media-service-m8@1.0",
-    "testedServiceVersion": "1.0.0",
-    "serviceVersionRange": ">=1.0.0 <2.0.0"
+    "contract": "media-service-m8@1.1",
+    "testedServiceVersion": "2.1.1",
+    "serviceVersionRange": ">=2.0.0 <3.0.0"
   }
 }

@@ -25,9 +25,14 @@ const ITEM_SCHEMA = "https://ui.shadcn.com/schema/registry-item.json";
 /** Build a single registry item, inlining the content of each declared file. */
 function buildItem(item) {
   const files = (item.files ?? []).map((file) => {
-    const content = readFileSync(join(ROOT, file.path), "utf8");
-    // shadcn ships file content inline; `add` rewrites aliases on insertion, so
-    // we keep the source verbatim (including the `@/` + package imports).
+    const raw = readFileSync(join(ROOT, file.path), "utf8");
+    // Normalize line endings before inlining: readFileSync returns whatever
+    // bytes are on disk, bypassing git's `eol=lf` filter, so a CRLF-tainted
+    // checkout (editor, OS, etc.) would otherwise leak `\r\n` into the
+    // published registry JSON. shadcn ships file content inline; `add`
+    // rewrites aliases on insertion, so beyond line endings we keep the
+    // source verbatim (including the `@/` + package imports).
+    const content = raw.replace(/\r\n/g, "\n");
     const out = { path: file.path, content, type: file.type };
     if (file.target !== undefined) out.target = file.target;
     return out;

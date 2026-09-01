@@ -11,8 +11,7 @@ vi.mock("../src/runtime/api/objects.js", () => ({ getObject }));
 import {
   createMediaUploadController,
   putToStorage,
-  sha256Hex,
-  UploadError
+  sha256Hex
 } from "../src/runtime/upload/uploadController.js";
 import { ApiError } from "../src/runtime/errors.js";
 import { configureMedia, resetMediaConfig } from "../src/runtime/config.js";
@@ -190,6 +189,22 @@ describe("MediaUploadController", () => {
     expect(completeUpload.mock.calls[0][1].sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("carries picked user categories on initiate and omits the field when none are picked", async () => {
+    const withCategories = createMediaUploadController({ ...baseInput(), categoryIds: [3, 4] });
+    await withCategories.start();
+    expect(initiateUpload).toHaveBeenLastCalledWith(
+      expect.objectContaining({ category: "asset", category_ids: [3, 4] })
+    );
+
+    const withoutCategories = createMediaUploadController(baseInput());
+    await withoutCategories.start();
+    const body = initiateUpload.mock.calls[1][0];
+    expect(body.category_ids).toBeUndefined();
+    // The undefined key never reaches the wire, so an older service that does
+    // not know the field sees the request it always saw.
+    expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty("category_ids");
+  });
+
   it("completes without a checksum when subtle crypto is missing", async () => {
     vi.stubGlobal("crypto", {});
     const controller = createMediaUploadController({ ...baseInput(), checksum: "sha256" });
@@ -219,6 +234,17 @@ describe("MediaUploadController", () => {
     const controller = createMediaUploadController(baseInput());
     await expect(controller.start()).rejects.toMatchObject({ kind: "api", message: /initiate/ });
     expect(controller.state).toBe("failed");
+  });
+
+  it("surfaces the server detail when initiate is rejected with an ApiError", async () => {
+    initiateUpload.mockRejectedValueOnce(
+      new ApiError(422, { code: "upload_rejected", reason: "quota_bytes_exceeded", message: "Upload rejected: quota_bytes_exceeded." })
+    );
+    const controller = createMediaUploadController(baseInput());
+    await expect(controller.start()).rejects.toMatchObject({
+      kind: "api",
+      message: "Upload rejected: quota_bytes_exceeded."
+    });
   });
 
   it("aborts the session and rethrows on a storage failure", async () => {
@@ -274,6 +300,20 @@ describe("MediaUploadController", () => {
     await expect(controller.start()).rejects.toMatchObject({ kind: "api", message: /complete/ });
   });
 
+  it("surfaces the server reason/message when complete is rejected with an ApiError, not the generic string", async () => {
+    completeUpload.mockRejectedValueOnce(
+      new ApiError(422, {
+        code: "upload_rejected",
+        reason: "sha256_mismatch",
+        message: "Upload rejected: sha256_mismatch."
+      })
+    );
+    const controller = createMediaUploadController(baseInput());
+    const error = await controller.start().catch((err: unknown) => err);
+    expect(error).toMatchObject({ kind: "api", message: "Upload rejected: sha256_mismatch." });
+    expect((error as Error).message).not.toBe("Failed to complete upload");
+  });
+
   it("polls until the object is scanned and ready", async () => {
     getObject
       .mockResolvedValueOnce(mediaObject({ status: "processing", scan_status: "pending" }))
@@ -285,10 +325,22 @@ describe("MediaUploadController", () => {
     expect(getObject).toHaveBeenCalledTimes(2);
   });
 
-  it("rejects when the scan quarantines the object", async () => {
+  it("rejects when the scan quarantines the object, with copy distinct from a timeout", async () => {
     getObject.mockResolvedValue(mediaObject({ status: "processing", scan_status: "quarantined" }));
     const controller = createMediaUploadController({ ...baseInput(), waitForScan: true });
-    await expect(controller.start()).rejects.toMatchObject({ kind: "scan" });
+    await expect(controller.start()).rejects.toMatchObject({
+      kind: "scan",
+      message: "This file was rejected because it failed the virus scan."
+    });
+  });
+
+  it("rejects when the scan finds the object infected", async () => {
+    getObject.mockResolvedValue(mediaObject({ status: "processing", scan_status: "infected" }));
+    const controller = createMediaUploadController({ ...baseInput(), waitForScan: true });
+    await expect(controller.start()).rejects.toMatchObject({
+      kind: "scan",
+      message: "This file was rejected because it failed the virus scan."
+    });
   });
 
   it("times out waiting for the scan", async () => {

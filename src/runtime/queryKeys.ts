@@ -21,7 +21,9 @@ export const mediaKeys = {
   object: (objectId: string) => ["media", "object", objectId] as const,
   variants: (objectId: string) => ["media", "variants", objectId] as const,
   presets: () => ["media", "presets"] as const,
+  categoryTree: () => ["media", "categories", "tree"] as const,
   downloadUrl: (objectId: string) => ["media", "download-url", objectId] as const,
+  exportJob: (jobId: string) => ["media", "export-job", jobId] as const,
   adminStats: () => ["media", "admin", "stats"] as const,
   adminStaleUploads: <TParams extends QueryKeyParams>(params?: TParams) =>
     ["media", "admin", "stale-uploads", normalizeParams(params)] as const,

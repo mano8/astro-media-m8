@@ -2,6 +2,7 @@ export type MediaRouteFragments = {
   base?: string;
   upload?: string | false;
   library?: string | false;
+  categories?: string | false;
   object?: string | false;
   presets?: string | false;
   admin?: string | false;
@@ -10,6 +11,7 @@ export type MediaRouteFragments = {
 export type BuiltMediaRoutes = {
   upload?: string;
   library?: string;
+  categories?: string;
   object?: string;
   presets?: string;
   admin?: string;
@@ -19,6 +21,7 @@ const DEFAULT_FRAGMENTS: Required<Omit<MediaRouteFragments, "base">> & { base: s
   base: "",
   upload: "/media/upload",
   library: "/media",
+  categories: "/media/categories",
   object: "/media/object/[id]",
   presets: "/media/presets",
   admin: "/admin/media"
@@ -35,6 +38,7 @@ export function buildMediaRoutes(routes: MediaRouteFragments = {}): BuiltMediaRo
   return {
     upload: merged.upload === false ? undefined : joinRoute(base, merged.upload),
     library: merged.library === false ? undefined : joinRoute(base, merged.library),
+    categories: merged.categories === false ? undefined : joinRoute(base, merged.categories),
     object: merged.object === false ? undefined : joinRoute(base, merged.object),
     presets: merged.presets === false ? undefined : joinRoute(base, merged.presets),
     admin: merged.admin === false ? undefined : joinRoute(base, merged.admin)

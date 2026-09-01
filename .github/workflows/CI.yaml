@@ -39,8 +39,30 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Fleet alignment gates
+        run: npm run verify:fleet-gates
+
+      - name: Registry drift
+        run: npm run verify:registry-drift
+
+      - name: Typecheck the installed registry skins
+        run: npm run verify:registry-consumer
+
+      - name: Standalone minimal-host starter routes
+        run: npm run verify:starter-routes
+
+      # The dev-only gallery renders every island root from source, so it is
+      # the gate that fails when a view's imports stop resolving. `A-C2` added
+      # it after finding the shared package's own gallery had been broken for
+      # months precisely because no job ran it.
+      - name: Build the /_preview gallery
+        run: npm run preview:build
+
       - name: Verify npm package contents
         run: npm pack --dry-run
+
+      - name: Standalone install-from-tarball smoke
+        run: npm run verify:tarball-install
 
   test:
     name: Test (Node ${{ matrix.node-version }})
@@ -107,5 +129,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run production npm audit (HIGH/CRITICAL advisories)
-        run: npm audit --omit=dev --audit-level=high
+      # Dev dependencies stay in scope, per the fleet policy decided under `D-C5`:
+      # a dev advisory does not reach a consumer, but it does reach the machine
+      # that builds and signs the package.
+      - name: Run npm audit (HIGH/CRITICAL advisories, dev dependencies included)
+        run: npm audit --audit-level=high

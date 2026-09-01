@@ -60,6 +60,68 @@ const nullableIsoDate = isoDate.nullable();
 // Media objects
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// User categories (nested, tenant-scoped, M2M — mirrors
+// media_service/db_models/categories.py CategoryNode / MediaObjectCategoryRef)
+// ---------------------------------------------------------------------------
+
+export const MediaObjectCategoryRefSchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string(),
+    path: z.string()
+  })
+  .strict();
+export type MediaObjectCategoryRef = z.infer<typeof MediaObjectCategoryRefSchema>;
+
+// Keep this aligned with media-service-m8's default
+// `MEDIA_IMPORT_MAX_CATEGORY_DEPTH`. The bounded schema stops an untrusted
+// response from driving unbounded recursive parsing in the browser.
+export const MEDIA_CATEGORY_MAX_DEPTH = 10;
+export type CategoryNode = {
+  id: number;
+  owner_id: string;
+  tenant_id: string | null;
+  name: string;
+  slug: string;
+  parent_id: number | null;
+  object_count: number;
+  total_object_count: number;
+  children: CategoryNode[];
+};
+
+function categoryNodeSchemaAtDepth(depth: number): z.ZodType<CategoryNode> {
+  return z.lazy(() => {
+    const children =
+      depth < MEDIA_CATEGORY_MAX_DEPTH
+        ? z.array(categoryNodeSchemaAtDepth(depth + 1))
+        : z.array(z.never()).max(0, `Category tree cannot exceed ${MEDIA_CATEGORY_MAX_DEPTH} levels.`);
+    return z
+      .object({
+        id: z.number().int(),
+        owner_id: uuid,
+        tenant_id: uuid.nullable().default(null),
+        name: z.string().min(1).max(50),
+        slug: z.string().min(1).max(50),
+        parent_id: z.number().int().nullable().default(null),
+        object_count: z.number().int().nonnegative().default(0),
+        total_object_count: z.number().int().nonnegative().default(0),
+        children: children.default([])
+      })
+      .strict();
+  });
+}
+
+export const CategoryNodeSchema = categoryNodeSchemaAtDepth(1);
+
+export const CategoryTreeSchema = z
+  .object({
+    data: z.array(CategoryNodeSchema),
+    count: z.number().int().nonnegative().default(0)
+  })
+  .strict();
+export type CategoryTree = z.infer<typeof CategoryTreeSchema>;
+
 export const MediaObjectPublicSchema = z
   .object({
     id: uuid,
@@ -79,6 +141,7 @@ export const MediaObjectPublicSchema = z
     status: MediaObjectStatusSchema,
     scan_status: ScanStatusSchema,
     moderation_status: ModerationStatusSchema,
+    categories: z.array(MediaObjectCategoryRefSchema).default([]),
     created_at: isoDate,
     updated_at: isoDate,
     deleted_at: nullableIsoDate.default(null)
@@ -90,7 +153,12 @@ export const MediaObjectUpdateSchema = z
   .object({
     visibility: MediaVisibilitySchema.optional(),
     original_filename: z.string().nullable().optional(),
-    category: MediaCategorySchema.optional()
+    category: MediaCategorySchema.optional(),
+    // Set semantics (`U4`): a body carrying `category_ids` replaces the
+    // object's whole filing — `[]` unfiles it — while omitting the field
+    // leaves the existing filing alone, so it stays optional rather than
+    // defaulting to `[]`.
+    category_ids: z.array(z.number().int()).max(50).nullable().optional()
   })
   .strict();
 export type MediaObjectUpdate = z.infer<typeof MediaObjectUpdateSchema>;
@@ -126,6 +194,11 @@ export type ObjectListParams = {
   cursor?: string;
   owner_user_id?: string;
   include_deleted?: boolean;
+  // Branch filter over the user category tree (`U4`); composes with the fixed
+  // `category` enum above rather than replacing it.
+  category_id?: number;
+  include_descendants?: boolean;
+  uncategorized?: boolean;
 };
 
 export const ScanResultRequestSchema = z
@@ -145,7 +218,13 @@ export const UploadInitiateRequestSchema = z
     visibility: MediaVisibilitySchema,
     original_filename: z.string(),
     mime_type: z.string(),
-    expected_size_bytes: z.number().int().nonnegative()
+    expected_size_bytes: z.number().int().nonnegative(),
+    // Optional user categories to file the completed object into (`U4`); the
+    // fixed `category` above is untouched and still drives policy. Optional
+    // rather than defaulted so an existing caller that omits it compiles
+    // unchanged — the server's own `default_factory=list` covers the wire
+    // omission the same way.
+    category_ids: z.array(z.number().int()).max(50).optional()
   })
   .strict();
 export type UploadInitiateRequest = z.infer<typeof UploadInitiateRequestSchema>;
@@ -162,7 +241,16 @@ export type UploadInitiateResponse = z.infer<typeof UploadInitiateResponseSchema
 
 export const UploadCompleteRequestSchema = z
   .object({
-    sha256: z.string().nullable().optional()
+    sha256: z.string().nullable().optional(),
+    // Set semantics, and the *second* place a filing can be declared (`U4`):
+    // the service replaces whatever `POST /uploads/initiate` staged with this
+    // array, and `[]` completes the object filed into nothing. Omitting the
+    // key is not the same as sending `[]` — the service re-resolves the
+    // session's staged ids on omission, which is what the upload controller
+    // relies on today. Declared here because the schema is `.strict()`: the
+    // served contract accepts the field, so a caller that means to override
+    // at complete time must not have it rejected client-side.
+    category_ids: z.array(z.number().int()).max(50).optional()
   })
   .strict();
 export type UploadCompleteRequest = z.infer<typeof UploadCompleteRequestSchema>;
@@ -507,15 +595,26 @@ export const UsersActivitySchema = z
 export type UsersActivity = z.infer<typeof UsersActivitySchema>;
 
 // ---------------------------------------------------------------------------
-// Legacy categories
+// Categories — CRUD (list/get/add/edit/delete under `legacyBase`)
 // ---------------------------------------------------------------------------
+//
+// `get`/`add`/`edit`/`delete` moved off the legacy `{success, data}` envelope
+// onto typed responses when the server controller was extracted
+// (media-service-m8 `58bc3f9`); `CategoryPublic` also grew `parent_id` and
+// `tenant_id` from the nested-category model (`U3`), on every route that
+// returns it, `list` included. `ResponseMessageSchema` /
+// `ResponseModelBaseSchema` / `ResponseModelOrMessageSchema` below are no
+// longer used by `api/categories.ts` for this reason, but stay exported —
+// dropping a published `./schemas` export is a separate, unreviewed break.
 
 export const CategoryPublicSchema = z
   .object({
     id: z.number().int(),
     owner_id: uuid,
+    tenant_id: uuid.nullable().default(null),
     name: z.string().min(1).max(50),
-    slug: z.string().min(1).max(50)
+    slug: z.string().min(1).max(50),
+    parent_id: z.number().int().nullable().default(null)
   })
   .strict();
 export type CategoryPublic = z.infer<typeof CategoryPublicSchema>;
@@ -530,7 +629,8 @@ export type CategoriesPublic = z.infer<typeof CategoriesPublicSchema>;
 
 export const CategoryCreateSchema = z
   .object({
-    name: z.string().min(1).max(50)
+    name: z.string().min(1).max(50),
+    parent_id: z.number().int().nullable().optional()
   })
   .strict();
 export type CategoryCreate = z.infer<typeof CategoryCreateSchema>;
@@ -559,3 +659,122 @@ export const ResponseModelOrMessageSchema = z.union([
   ResponseMessageSchema
 ]);
 export type ResponseModelOrMessage = z.infer<typeof ResponseModelOrMessageSchema>;
+
+// ---------------------------------------------------------------------------
+// Export / import (`U9`/`U10`) — mirrors media_service/schemas/transfer.py.
+// Both directions share one `manifest`/`archive` format vocabulary but use
+// separate object shapes: an export projects rows this service already owns,
+// while an import parses an attacker-controlled file, so the fields an
+// import must never trust (`status`, `scan_status`, timestamps, foreign row
+// ids) are simply absent from the inbound `Import*` shapes below.
+// ---------------------------------------------------------------------------
+
+export const ExportFormatSchema = z.enum(["manifest", "archive"]);
+export type ExportFormat = z.infer<typeof ExportFormatSchema>;
+
+export const ManifestObjectEntrySchema = z
+  .object({
+    id: uuid,
+    filename: z.string().nullable().default(null),
+    category: MediaCategorySchema,
+    category_paths: z.array(z.string()).default([]),
+    visibility: MediaVisibilitySchema,
+    size_bytes: z.number().int().nonnegative(),
+    sha256: z.string().length(64).nullable().default(null),
+    mime_type: z.string(),
+    status: MediaObjectStatusSchema,
+    scan_status: ScanStatusSchema,
+    created_at: isoDate,
+    updated_at: isoDate
+  })
+  .strict();
+export type ManifestObjectEntry = z.infer<typeof ManifestObjectEntrySchema>;
+
+// The streamed body of a `manifest` export (`GET`/`POST .../export`), parsed
+// whole client-side — the server streams it incrementally, but nothing on
+// this side of the wire needs to.
+export const ExportManifestSchema = z
+  .object({
+    category_tree: z.array(CategoryNodeSchema),
+    objects: z.array(ManifestObjectEntrySchema)
+  })
+  .strict();
+export type ExportManifest = z.infer<typeof ExportManifestSchema>;
+
+export const ExportJobStatusSchema = z.enum(["queued", "processing", "completed", "failed"]);
+export type ExportJobStatus = z.infer<typeof ExportJobStatusSchema>;
+
+export const ExportJobPublicSchema = z
+  .object({
+    id: uuid,
+    status: ExportJobStatusSchema,
+    object_count: z.number().int().nonnegative(),
+    total_size_bytes: z.number().int().nonnegative(),
+    size_bytes: z.number().int().nonnegative().nullable().default(null),
+    expires_at: nullableIsoDate.default(null),
+    error: z.string().nullable().default(null),
+    created_at: isoDate,
+    updated_at: isoDate,
+    // Populated only while the job is `completed` and its archive has not
+    // lapsed — a short-lived presigned GET, minted per status read.
+    download_url: z.string().nullable().default(null)
+  })
+  .strict();
+export type ExportJobPublic = z.infer<typeof ExportJobPublicSchema>;
+
+/** Body of `POST /export`. `filters` reuses `ObjectListParams` (`D-filter`). */
+export type ExportRequest = {
+  format: ExportFormat;
+  filters?: ObjectListParams;
+};
+
+export const ImportFormatSchema = ExportFormatSchema;
+export type ImportFormat = z.infer<typeof ImportFormatSchema>;
+
+export const ImportRowStatusSchema = z.enum(["created", "linked", "skipped", "failed"]);
+export type ImportRowStatus = z.infer<typeof ImportRowStatusSchema>;
+
+// The first five are `U1`'s upload-reject vocabulary, reused verbatim; the
+// rest name outcomes only an import can have.
+export const ImportRowReasonSchema = z.enum([
+  "size_exceeded",
+  "mime_mismatch",
+  "sha256_mismatch",
+  "quota_bytes_exceeded",
+  "quota_objects_exceeded",
+  "missing_bytes",
+  "already_exists",
+  "id_conflict",
+  "unsupported_mime",
+  "invalid_metadata",
+  "storage_error"
+]);
+export type ImportRowReason = z.infer<typeof ImportRowReasonSchema>;
+
+export const ImportObjectResultSchema = z
+  .object({
+    source_id: uuid,
+    filename: z.string().nullable().default(null),
+    status: ImportRowStatusSchema,
+    reason: ImportRowReasonSchema.nullable().default(null),
+    message: z.string().nullable().default(null),
+    media_object_id: uuid.nullable().default(null),
+    category_paths: z.array(z.string()).default([]),
+    scan_queued: z.boolean().default(false)
+  })
+  .strict();
+export type ImportObjectResult = z.infer<typeof ImportObjectResultSchema>;
+
+export const ImportReportSchema = z
+  .object({
+    format: ImportFormatSchema,
+    categories_created: z.number().int().nonnegative().default(0),
+    categories_reused: z.number().int().nonnegative().default(0),
+    created: z.number().int().nonnegative().default(0),
+    linked: z.number().int().nonnegative().default(0),
+    skipped: z.number().int().nonnegative().default(0),
+    failed: z.number().int().nonnegative().default(0),
+    objects: z.array(ImportObjectResultSchema).default([])
+  })
+  .strict();
+export type ImportReport = z.infer<typeof ImportReportSchema>;

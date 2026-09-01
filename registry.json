@@ -53,7 +53,8 @@
         "button",
         "alert-dialog",
         "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
-        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json"
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-unauthorized.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/toast-notification.json"
       ],
       "files": [
         {
@@ -80,6 +81,65 @@
           "path": "registry/blocks/admin/admin-media-dashboard.tsx",
           "type": "registry:component",
           "target": "components/fa-media/admin-media-dashboard.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-category-tree",
+      "type": "registry:component",
+      "title": "Media Category Tree",
+      "description": "shadcn skin over astro-ui-m8's generic tree-view for the nested user category tree, with All/Uncategorized pseudo-nodes, driven by the package's useCategoryTree hook. Requires @mano8/astro-media-m8 installed.",
+      "registryDependencies": [
+        "./node_modules/@mano8/astro-ui-m8/registry/r/tree-view.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-empty.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-loading.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/library/media-category-tree.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-category-tree.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-library-tree",
+      "type": "registry:component",
+      "title": "Media Library Tree View",
+      "description": "Two-pane documents tree view: media-category-tree (left) paired with astro-ui-m8's data-table (right), scoped to the selected branch via the package's useMediaObjects hook. Requires @mano8/astro-media-m8 installed.",
+      "dependencies": ["@tanstack/react-table"],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/data-table.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/state-error.json",
+        "./node_modules/@mano8/astro-media-m8/registry/r/media-category-tree.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/library/media-library-tree.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-library-tree.tsx"
+        }
+      ]
+    },
+    {
+      "name": "media-transfer-dialog",
+      "type": "registry:component",
+      "title": "Media Import / Export Dialog",
+      "description": "shadcn dialog skin for the media transfer hooks. It composes astro-ui-m8's dialog-form and data-table recipes, and forwards active filters such as a selected category branch. Requires @mano8/astro-media-m8 installed.",
+      "dependencies": ["@tanstack/react-table", "react-hook-form", "zod", "@hookform/resolvers"],
+      "registryDependencies": [
+        "button",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/dialog-form.json",
+        "./node_modules/@mano8/astro-ui-m8/registry/r/data-table.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/library/media-transfer-dialog.tsx",
+          "type": "registry:component",
+          "target": "components/fa-media/media-transfer-dialog.tsx"
         }
       ]
     }

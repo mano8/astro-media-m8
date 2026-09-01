@@ -6,6 +6,7 @@ import * as sharesApi from "./shares.js";
 import * as categoriesApi from "./categories.js";
 import * as dashboardApi from "./dashboard.js";
 import * as adminApi from "./admin.js";
+import * as transferApi from "./transfer.js";
 
 // Flat named exports (tree-shakeable direct imports).
 export * from "./uploads.js";
@@ -16,6 +17,7 @@ export * from "./shares.js";
 export * from "./categories.js";
 export * from "./dashboard.js";
 export * from "./admin.js";
+export * from "./transfer.js";
 
 // Grouped namespaces (`uploads.initiate`, `objects.list`, ...).
 export const uploads = {
@@ -56,6 +58,7 @@ export const shares = {
 
 export const categories = {
   list: categoriesApi.listCategories,
+  tree: categoriesApi.getCategoryTree,
   get: categoriesApi.getCategory,
   create: categoriesApi.createCategory,
   update: categoriesApi.updateCategory,
@@ -79,4 +82,10 @@ export const admin = {
   createSubscription: adminApi.createSubscription,
   listSubscriptions: adminApi.listSubscriptions,
   deleteSubscription: adminApi.deleteSubscription
+} as const;
+
+export const transfer = {
+  startExport: transferApi.startExport,
+  getExportJob: transferApi.getExportJob,
+  startImport: transferApi.startImport
 } as const;

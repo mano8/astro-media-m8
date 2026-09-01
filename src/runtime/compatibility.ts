@@ -1,9 +1,33 @@
 export const MEDIA_SERVICE_M8_CONTRACT_ID = "media-service-m8";
-export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "1.0";
+export const MEDIA_SERVICE_M8_CONTRACT_VERSION = "1.1";
 export const MEDIA_SERVICE_M8_CONTRACT = `${MEDIA_SERVICE_M8_CONTRACT_ID}@${MEDIA_SERVICE_M8_CONTRACT_VERSION}` as const;
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "1.0.0";
-export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "1.0.0";
-export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "2.0.0";
+const MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS = new Set([
+  "1.0",
+  `${MEDIA_SERVICE_M8_CONTRACT_ID}@1.0`,
+  MEDIA_SERVICE_M8_CONTRACT_VERSION,
+  MEDIA_SERVICE_M8_CONTRACT
+]);
+// The service version range moves with media-service-m8's package version, which
+// reached 2.0.0 for the reader/writer role tiers and the anonymous PUBLIC read
+// surface. The contract moves to 1.1 for the additive UX API surface; the
+// service-version gate remains at 2.x because this plugin still targets the
+// same service release line. A pre-tier 1.x service is deliberately no longer
+// admitted: it cannot serve the authorization behavior this plugin's guards
+// assume.
+// The service version this client was actually exercised against: 2.1.1, the
+// single-object category-projection fix, whose OpenAPI is what every schema
+// here was diffed against in the same pass.
+//
+// Written ahead of the 2.1.1 tag, deliberately and on the record — the same
+// ordering inversion the workspace matrix documents for the 2.1.0 image pins,
+// noted rather than hidden. It is safe *here* in a way a pin is not: this
+// constant resolves nothing and installs nothing. The gate is
+// MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE below, which already admits the whole
+// 2.x line, so a host pointed at the published 2.1.0 passes preflight
+// unchanged and this value never refuses it.
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "2.1.1";
+export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "2.0.0";
+export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "3.0.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;
 
 export type MediaServiceM8CompatibilityStatus = "compatible" | "incompatible" | "unknown";
@@ -41,6 +65,22 @@ function stringValue(value: unknown): string | undefined {
 function contractObjectVersion(value: unknown): string | undefined {
   if (typeof value === "object" && value !== null) {
     return stringValue((value as { version?: unknown }).version);
+  }
+  return undefined;
+}
+
+// Read ``contract.name`` from the GET /meta nested contract object.
+//
+// The flat-string contract forms carry the issuer id inline (``media-service-m8@1.0``)
+// and are checked against it, but the nested object splits id and version apart.
+// Without reading ``name`` the version check alone would bless any service whose
+// contract happens to sit at the same version - and ``mount_service_meta`` is a
+// shared auth-sdk-m8 helper, so every M8 service serves this same payload shape
+// at ``{API_PREFIX}/meta``. A host pointed at the wrong sibling is exactly the
+// misconfiguration the preflight exists to name.
+function contractObjectName(value: unknown): string | undefined {
+  if (typeof value === "object" && value !== null) {
+    return stringValue((value as { name?: unknown }).name);
   }
   return undefined;
 }
@@ -89,11 +129,23 @@ export function getMediaServiceM8Compatibility(
     stringValue(metadata.service_version) ??
     stringValue(metadata.version);
 
-  if (
-    contractVersion &&
-    contractVersion !== MEDIA_SERVICE_M8_CONTRACT_VERSION &&
-    contractVersion !== MEDIA_SERVICE_M8_CONTRACT
-  ) {
+  // Checked before the version, so a wrong service is reported as a wrong
+  // service rather than as a version mismatch. Only applies when the payload
+  // names an id at all - a nested contract without a `name` still falls through
+  // to the version comparison below.
+  const contractName = contractObjectName(metadata.contract);
+  if (contractName && contractName !== MEDIA_SERVICE_M8_CONTRACT_ID) {
+    return {
+      status: "incompatible",
+      expectedContract: MEDIA_SERVICE_M8_CONTRACT,
+      expectedServiceVersionRange: MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE,
+      contractVersion,
+      serviceVersion,
+      reason: `Expected ${MEDIA_SERVICE_M8_CONTRACT}, received the ${contractName} contract - check the configured media API base`
+    };
+  }
+
+  if (contractVersion && !MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS.has(contractVersion)) {
     return {
       status: "incompatible",
       expectedContract: MEDIA_SERVICE_M8_CONTRACT,

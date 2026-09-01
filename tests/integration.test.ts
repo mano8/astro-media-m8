@@ -21,6 +21,7 @@ describe("buildMediaRoutes", () => {
     expect(buildMediaRoutes()).toEqual({
       upload: "/media/upload",
       library: "/media",
+      categories: "/media/categories",
       object: "/media/object/[id]",
       presets: "/media/presets",
       admin: "/admin/media"
@@ -35,9 +36,10 @@ describe("buildMediaRoutes", () => {
   });
 
   it("disables every route and collapses a root library", () => {
-    expect(buildMediaRoutes({ upload: false, library: false, object: false, presets: false, admin: false })).toEqual({
+    expect(buildMediaRoutes({ upload: false, library: false, categories: false, object: false, presets: false, admin: false })).toEqual({
       upload: undefined,
       library: undefined,
+      categories: undefined,
       object: undefined,
       presets: undefined,
       admin: undefined
@@ -86,9 +88,10 @@ describe("faMedia integration", () => {
       { mode: "starter" },
       { config: { integrations: [{ name: "@mano8/astro-auth-m8" }, { name: "@mano8/astro-media-m8" }] } }
     );
-    expect(injectRoute).toHaveBeenCalledTimes(5);
+    expect(injectRoute).toHaveBeenCalledTimes(6);
     const patterns = injectRoute.mock.calls.map(([arg]) => (arg as { pattern: string }).pattern);
     expect(patterns).toContain("/media/upload");
+    expect(patterns).toContain("/media/categories");
     expect(patterns).toContain("/admin/media");
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -102,6 +105,10 @@ describe("faMedia integration", () => {
     expect(injectRoute).toHaveBeenCalledWith({
       pattern: "/media",
       entrypoint: "@mano8/astro-media-m8/routes/library.astro"
+    });
+    expect(injectRoute).toHaveBeenCalledWith({
+      pattern: "/media/categories",
+      entrypoint: "@mano8/astro-media-m8/routes/categories.astro"
     });
     expect(injectRoute).toHaveBeenCalledWith({
       pattern: "/media/object/[id]",
@@ -142,7 +149,7 @@ describe("faMedia integration", () => {
 
   it("warns when starter routes are enabled with provider none", () => {
     const { injectRoute, logger } = runSetup({ mode: "starter", auth: { provider: "none" } });
-    expect(injectRoute).toHaveBeenCalledTimes(5);
+    expect(injectRoute).toHaveBeenCalledTimes(6);
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("requires fa-auth-m8"));
   });
 
