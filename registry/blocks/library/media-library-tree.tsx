@@ -82,18 +82,12 @@ export interface MediaLibraryTreeProps {
   className?: string;
 }
 
-export function MediaLibraryTree({ labels, pageSize = 20, className }: MediaLibraryTreeProps) {
-  // Memoised on `labels`: a fresh object each render would re-run every
-  // downstream `useMemo` that reads it, including the column definitions.
-  const t = React.useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
-  const [selection, setSelection] = React.useState<MediaCategorySelection>({ kind: "all" });
-  const branchParams = React.useMemo(() => categorySelectionToListParams(selection), [selection]);
-  const { items, count, loading, error, hasMore, loadMore, refresh } = useMediaObjects({
-    ...branchParams,
-    limit: pageSize,
-  });
-
-  const columns = React.useMemo<ColumnDef<MediaObjectPublic>[]>(
+/**
+ * The six results columns. Memoised on the resolved labels, so a re-render that
+ * did not change the copy hands `DataTable` the same column identities.
+ */
+function useLibraryColumns(t: MediaLibraryTreeLabels): ColumnDef<MediaObjectPublic>[] {
+  return React.useMemo<ColumnDef<MediaObjectPublic>[]>(
     () => [
       {
         accessorKey: "original_filename",
@@ -124,23 +118,18 @@ export function MediaLibraryTree({ labels, pageSize = 20, className }: MediaLibr
     ],
     [t],
   );
+}
 
-  // `useMediaObjects` is cursor-paginated (`loadMore`/`hasMore`), not the
-  // page-numbered model `DataTable` was built for — rather than forking a
-  // second results table, the table's page is pinned to the single page of
-  // rows already loaded and "Load more" is handed to it as the `addButton`
-  // slot, so paging further is one more cursor fetch, not a page jump.
-  const loadMoreButton = hasMore ? (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => void loadMore()}
-      disabled={loading}
-    >
-      {t.loadMore}
-    </Button>
-  ) : undefined;
+export function MediaLibraryTree({ labels, pageSize = 20, className }: MediaLibraryTreeProps) {
+  // Memoised on `labels`: a fresh object each render would re-run every
+  // downstream `useMemo` that reads it, including the column definitions.
+  const t = React.useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels]);
+  const [selection, setSelection] = React.useState<MediaCategorySelection>({ kind: "all" });
+  const branchParams = React.useMemo(() => categorySelectionToListParams(selection), [selection]);
+  const { items, count, loading, error, hasMore, loadMore, refresh } = useMediaObjects({
+    ...branchParams,
+    limit: pageSize,
+  });
 
   return (
     <div className={cn("flex flex-col gap-6 md:flex-row", className)}>
@@ -148,29 +137,60 @@ export function MediaLibraryTree({ labels, pageSize = 20, className }: MediaLibr
         <MediaCategoryTree selection={selection} onSelectionChange={setSelection} />
       </aside>
       <div className="min-w-0 flex-1">
-        {error && items.length === 0 ? (
-          <StateError
-            title={t.error}
-            description={error instanceof Error && error.message ? error.message : t.error}
-            retryLabel={t.errorRetry}
-            onRetry={() => void refresh()}
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={items}
-            loading={loading && items.length === 0}
-            rowCount={count}
-            page={1}
-            pageSize={Math.max(items.length, 1)}
-            onPageChange={() => {}}
-            onPageSizeChange={() => {}}
-            addButton={loadMoreButton}
-            labels={{ loading: t.loading, empty: t.empty }}
-            getRowId={(row) => row.id}
-          />
-        )}
+        <LibraryResults t={t} results={{ items, count, loading, error, hasMore, loadMore, refresh }} />
       </div>
     </div>
+  );
+}
+
+type LibraryResultsState = Pick<
+  ReturnType<typeof useMediaObjects>,
+  "items" | "count" | "loading" | "error" | "hasMore" | "loadMore" | "refresh"
+>;
+
+/**
+ * The results column: the table, or the error state when the first page never
+ * arrived. A later page failing leaves the rows already in hand on screen.
+ */
+function LibraryResults({ t, results }: { t: MediaLibraryTreeLabels; results: LibraryResultsState }) {
+  const { items, count, loading, error, hasMore, loadMore, refresh } = results;
+  const columns = useLibraryColumns(t);
+
+  if (error && items.length === 0) {
+    return (
+      <StateError
+        title={t.error}
+        description={error instanceof Error && error.message ? error.message : t.error}
+        retryLabel={t.errorRetry}
+        onRetry={() => void refresh()}
+      />
+    );
+  }
+
+  // `useMediaObjects` is cursor-paginated (`loadMore`/`hasMore`), not the
+  // page-numbered model `DataTable` was built for — rather than forking a
+  // second results table, the table's page is pinned to the single page of
+  // rows already loaded and "Load more" is handed to it as the `addButton`
+  // slot, so paging further is one more cursor fetch, not a page jump.
+  const loadMoreButton = hasMore ? (
+    <Button type="button" variant="outline" size="sm" onClick={() => void loadMore()} disabled={loading}>
+      {t.loadMore}
+    </Button>
+  ) : undefined;
+
+  return (
+    <DataTable
+      columns={columns}
+      data={items}
+      loading={loading && items.length === 0}
+      rowCount={count}
+      page={1}
+      pageSize={Math.max(items.length, 1)}
+      onPageChange={() => {}}
+      onPageSizeChange={() => {}}
+      addButton={loadMoreButton}
+      labels={{ loading: t.loading, empty: t.empty }}
+      getRowId={(row) => row.id}
+    />
   );
 }

@@ -69,123 +69,175 @@ type RowProps = {
  * mutation's promise rejecting; the server stays the single source of truth
  * for every structural guard, this row only surfaces what it says.
  */
-function CategoryManagerRow({ node, depth, options, onRename, onReparent, onDelete, onAddChild }: RowProps) {
-  const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState(node.name);
+/**
+ * The busy/error state every row mutation shares, plus the three mutations
+ * themselves. Each one reports the server's refusal through `rowError` rather
+ * than throwing on: a rejected rename, reparent or delete is a message on the
+ * row it belongs to, never a torn-down subtree.
+ */
+function useRowMutations(node: CategoryNode, props: RowProps) {
   const [busy, setBusy] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
 
-  async function saveRename() {
-    const trimmed = draftName.trim();
-    if (!trimmed || trimmed === node.name) {
-      setRenaming(false);
-      setDraftName(node.name);
-      return;
-    }
+  async function guard(action: () => Promise<void>) {
     setBusy(true);
     setRowError(null);
     try {
-      await onRename(node.id, trimmed);
-      setRenaming(false);
+      await action();
+      return true;
     } catch (error) {
       setRowError(describeCategoryError(error));
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
-  async function reparentTo(value: string) {
-    const parentId = value === "" ? null : Number(value);
-    if (parentId === node.parent_id) return;
-    setBusy(true);
-    setRowError(null);
-    try {
-      await onReparent(node.id, parentId);
-    } catch (error) {
-      setRowError(describeCategoryError(error));
-    } finally {
-      setBusy(false);
-    }
-  }
+  return {
+    busy,
+    rowError,
+    rename: (name: string) => guard(() => props.onRename(node.id, name)),
+    reparent: (parentId: number | null) => guard(() => props.onReparent(node.id, parentId)),
+    remove: () => guard(() => props.onDelete(node.id))
+  };
+}
 
-  async function handleDelete() {
-    setBusy(true);
-    setRowError(null);
-    try {
-      await onDelete(node.id);
-    } catch (error) {
-      setRowError(describeCategoryError(error));
-    } finally {
-      setBusy(false);
-    }
-  }
+/** The row in its rename state: a single text input and its two actions. */
+function RowRenameForm({
+  node,
+  busy,
+  onSave,
+  onCancel
+}: {
+  node: CategoryNode;
+  busy: boolean;
+  onSave: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [draftName, setDraftName] = useState(node.name);
+  const nameInputId = `fa-media-category-manager-name-${node.id}`;
 
+  return (
+    <>
+      <label className="fa-media-category-manager-sr-label" htmlFor={nameInputId}>
+        {`Rename ${node.name}`}
+      </label>
+      <input
+        id={nameInputId}
+        className={inputClassName}
+        value={draftName}
+        disabled={busy}
+        onChange={(event) => setDraftName(event.currentTarget.value)}
+      />
+      <button type="button" disabled={busy} onClick={() => onSave(draftName)}>
+        Save
+      </button>
+      <button type="button" disabled={busy} onClick={onCancel}>
+        Cancel
+      </button>
+    </>
+  );
+}
+
+/** The row at rest: name, count, and the rename/add-child/reparent/delete actions. */
+function RowActions({
+  node,
+  options,
+  busy,
+  onStartRename,
+  onAddChild,
+  onReparent,
+  onDelete
+}: {
+  node: CategoryNode;
+  options: readonly ParentOption[];
+  busy: boolean;
+  onStartRename: () => void;
+  onAddChild: (parentId: number) => void;
+  onReparent: (parentId: number | null) => void;
+  onDelete: () => void;
+}) {
   // A node cannot be its own parent — the one cycle worth foreclosing
   // client-side. Every deeper cycle (reparenting under a descendant) is left
-  // to the server's 409, surfaced above.
+  // to the server's 409, surfaced on the row.
   const reparentOptions = options.filter((option) => option.id !== node.id);
   const parentSelectId = `fa-media-category-manager-parent-${node.id}`;
-  const nameInputId = `fa-media-category-manager-name-${node.id}`;
+
+  return (
+    <>
+      <span className="fa-media-category-manager-name">{node.name}</span>
+      <span className="fa-media-badge fa-media-category-count">{node.total_object_count}</span>
+      <button type="button" disabled={busy} onClick={onStartRename}>
+        Rename
+      </button>
+      <button type="button" disabled={busy} onClick={() => onAddChild(node.id)}>
+        Add child
+      </button>
+      <label className="fa-media-category-manager-reparent-label" htmlFor={parentSelectId}>
+        Parent
+        <select
+          id={parentSelectId}
+          className={inputClassName}
+          disabled={busy}
+          value={node.parent_id ?? ""}
+          onChange={(event) => {
+            const value = event.currentTarget.value;
+            onReparent(value === "" ? null : Number(value));
+          }}
+        >
+          {reparentOptions.map((option) => (
+            <option key={option.id ?? "root"} value={option.id ?? ""}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" disabled={busy} onClick={onDelete}>
+        Delete
+      </button>
+    </>
+  );
+}
+
+function CategoryManagerRow(props: RowProps) {
+  const { node, depth, options, onAddChild } = props;
+  const [renaming, setRenaming] = useState(false);
+  const { busy, rowError, rename, reparent, remove } = useRowMutations(node, props);
+
+  // An empty or unchanged name is not a rename — leave the row as it was
+  // rather than sending the server a no-op it would have to answer.
+  async function saveRename(draft: string) {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === node.name) {
+      setRenaming(false);
+      return;
+    }
+    if (await rename(trimmed)) setRenaming(false);
+  }
 
   return (
     <li className="fa-media-category-manager-node" aria-level={depth}>
       <div className="fa-media-category-manager-row">
         {renaming ? (
-          <>
-            <label className="fa-media-category-manager-sr-label" htmlFor={nameInputId}>
-              {`Rename ${node.name}`}
-            </label>
-            <input
-              id={nameInputId}
-              className={inputClassName}
-              value={draftName}
-              disabled={busy}
-              onChange={(event) => setDraftName(event.currentTarget.value)}
-            />
-            <button type="button" disabled={busy} onClick={() => void saveRename()}>
-              Save
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setRenaming(false);
-                setDraftName(node.name);
-              }}
-            >
-              Cancel
-            </button>
-          </>
+          <RowRenameForm
+            key={node.name}
+            node={node}
+            busy={busy}
+            onSave={(draft) => void saveRename(draft)}
+            onCancel={() => setRenaming(false)}
+          />
         ) : (
-          <>
-            <span className="fa-media-category-manager-name">{node.name}</span>
-            <span className="fa-media-badge fa-media-category-count">{node.total_object_count}</span>
-            <button type="button" disabled={busy} onClick={() => setRenaming(true)}>
-              Rename
-            </button>
-            <button type="button" disabled={busy} onClick={() => onAddChild(node.id)}>
-              Add child
-            </button>
-            <label className="fa-media-category-manager-reparent-label" htmlFor={parentSelectId}>
-              Parent
-              <select
-                id={parentSelectId}
-                className={inputClassName}
-                disabled={busy}
-                value={node.parent_id ?? ""}
-                onChange={(event) => void reparentTo(event.currentTarget.value)}
-              >
-                {reparentOptions.map((option) => (
-                  <option key={option.id ?? "root"} value={option.id ?? ""}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" disabled={busy} onClick={() => void handleDelete()}>
-              Delete
-            </button>
-          </>
+          <RowActions
+            node={node}
+            options={options}
+            busy={busy}
+            onStartRename={() => setRenaming(true)}
+            onAddChild={onAddChild}
+            onReparent={(parentId) => {
+              if (parentId !== node.parent_id) void reparent(parentId);
+            }}
+            onDelete={() => void remove()}
+          />
         )}
       </div>
       {rowError ? (
@@ -196,16 +248,7 @@ function CategoryManagerRow({ node, depth, options, onRename, onReparent, onDele
       {node.children.length > 0 ? (
         <ul className="fa-media-category-manager-children">
           {node.children.map((child) => (
-            <CategoryManagerRow
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              options={options}
-              onRename={onRename}
-              onReparent={onReparent}
-              onDelete={onDelete}
-              onAddChild={onAddChild}
-            />
+            <CategoryManagerRow key={child.id} {...props} node={child} depth={depth + 1} />
           ))}
         </ul>
       ) : null}
@@ -223,53 +266,19 @@ function CategoryManagerRow({ node, depth, options, onRename, onReparent, onDele
  */
 export function CategoryManager() {
   const { tree, count, loading, error, create, update, remove } = useCategoryTree();
-  const [newName, setNewName] = useState("");
-  const [newParentId, setNewParentId] = useState("");
-  const [createBusy, setCreateBusy] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
   const options = useMemo(() => parentOptions(tree), [tree]);
+  const createForm = useCreateForm(create);
+  const loadErrorMessage = describeLoadError(error);
 
+  // Rename and reparent are the same `PUT` with one half held constant, so each
+  // reads the node's current other half back out of the tree first.
   async function rename(id: number, name: string) {
-    const node = findNode(tree, id);
-    await update(id, { name, parent_id: node?.parent_id ?? null });
+    await update(id, { name, parent_id: findNode(tree, id)?.parent_id ?? null });
   }
 
   async function reparent(id: number, parentId: number | null) {
-    const node = findNode(tree, id);
-    await update(id, { name: node?.name ?? "", parent_id: parentId });
+    await update(id, { name: findNode(tree, id)?.name ?? "", parent_id: parentId });
   }
-
-  async function submitCreate() {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    setCreateBusy(true);
-    setCreateError(null);
-    try {
-      await create({ name: trimmed, parent_id: newParentId === "" ? null : Number(newParentId) });
-      setNewName("");
-      setNewParentId("");
-    } catch (error) {
-      setCreateError(describeCategoryError(error));
-    } finally {
-      setCreateBusy(false);
-    }
-  }
-
-  // "Add child" on a row just pre-selects that row as the create form's
-  // parent — one form, not a second inline one per node.
-  function addChildTo(parentId: number) {
-    setNewParentId(String(parentId));
-    setCreateError(null);
-  }
-
-  const loadErrorMessage = error
-    ? error instanceof ApiError
-      ? (messageFromDetail(error.detail) ?? "Failed to load categories")
-      : error instanceof Error
-        ? error.message
-        : "Failed to load categories"
-    : null;
 
   return (
     <section className="not-content fa-media-panel">
@@ -291,49 +300,104 @@ export function CategoryManager() {
               onRename={rename}
               onReparent={reparent}
               onDelete={remove}
-              onAddChild={addChildTo}
+              onAddChild={createForm.addChildTo}
             />
           ))}
         </ul>
       ) : null}
 
-      <fieldset className="fa-media-category-manager-create">
-        <legend>{`New category (${count} total)`}</legend>
-        <div className="fa-media-field-control">
-          <label className={labelClassName} htmlFor="fa-media-category-manager-new-name">
-            Name
-          </label>
-          <input
-            id="fa-media-category-manager-new-name"
-            className={inputClassName}
-            value={newName}
-            disabled={createBusy}
-            onChange={(event) => setNewName(event.currentTarget.value)}
-          />
-        </div>
-        <div className="fa-media-field-control">
-          <label className={labelClassName} htmlFor="fa-media-category-manager-new-parent">
-            Parent
-          </label>
-          <select
-            id="fa-media-category-manager-new-parent"
-            className={inputClassName}
-            value={newParentId}
-            disabled={createBusy}
-            onChange={(event) => setNewParentId(event.currentTarget.value)}
-          >
-            {options.map((option) => (
-              <option key={option.id ?? "root"} value={option.id ?? ""}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="button" disabled={createBusy || !newName.trim()} onClick={() => void submitCreate()}>
-          {createBusy ? "Creating…" : "Add category"}
-        </button>
-        {createError ? <p role="alert">{createError}</p> : null}
-      </fieldset>
+      <CategoryCreateForm form={createForm} options={options} count={count} />
     </section>
+  );
+}
+
+function describeLoadError(error: unknown): string | null {
+  if (!error) return null;
+  const detail = error instanceof ApiError ? messageFromDetail(error.detail) : null;
+  if (detail) return detail;
+  return error instanceof Error ? error.message : "Failed to load categories";
+}
+
+/**
+ * The one create form the manager owns. "Add child" on a row pre-selects that
+ * row as this form's parent — one form, not a second inline one per node.
+ */
+function useCreateForm(create: (input: { name: string; parent_id: number | null }) => Promise<unknown>) {
+  const [name, setName] = useState("");
+  const [parentId, setParentId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await create({ name: trimmed, parent_id: parentId === "" ? null : Number(parentId) });
+      setName("");
+      setParentId("");
+    } catch (failure) {
+      setError(describeCategoryError(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function addChildTo(nextParentId: number) {
+    setParentId(String(nextParentId));
+    setError(null);
+  }
+
+  return { name, setName, parentId, setParentId, busy, error, submit, addChildTo };
+}
+
+function CategoryCreateForm({
+  form,
+  options,
+  count
+}: {
+  form: ReturnType<typeof useCreateForm>;
+  options: readonly ParentOption[];
+  count: number;
+}) {
+  return (
+    <fieldset className="fa-media-category-manager-create">
+      <legend>{`New category (${count} total)`}</legend>
+      <div className="fa-media-field-control">
+        <label className={labelClassName} htmlFor="fa-media-category-manager-new-name">
+          Name
+        </label>
+        <input
+          id="fa-media-category-manager-new-name"
+          className={inputClassName}
+          value={form.name}
+          disabled={form.busy}
+          onChange={(event) => form.setName(event.currentTarget.value)}
+        />
+      </div>
+      <div className="fa-media-field-control">
+        <label className={labelClassName} htmlFor="fa-media-category-manager-new-parent">
+          Parent
+        </label>
+        <select
+          id="fa-media-category-manager-new-parent"
+          className={inputClassName}
+          value={form.parentId}
+          disabled={form.busy}
+          onChange={(event) => form.setParentId(event.currentTarget.value)}
+        >
+          {options.map((option) => (
+            <option key={option.id ?? "root"} value={option.id ?? ""}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button type="button" disabled={form.busy || !form.name.trim()} onClick={() => void form.submit()}>
+        {form.busy ? "Creating…" : "Add category"}
+      </button>
+      {form.error ? <p role="alert">{form.error}</p> : null}
+    </fieldset>
   );
 }

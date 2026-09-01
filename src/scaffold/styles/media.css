@@ -13,6 +13,7 @@
   --fa-media-badge-failed-bg: var(--fa-media-destructive-surface, var(--fa-media-muted-bg));
   --fa-media-badge-processing-bg: var(--fa-media-warning-surface, var(--fa-media-muted-bg));
   --fa-media-danger-fg: var(--fa-media-destructive-foreground, var(--destructive, currentColor));
+
   width: 100%;
   max-width: none;
   margin: 1.5rem 0;
@@ -206,6 +207,10 @@
   background: var(--fa-media-badge-failed-bg);
 }
 
+/* The modifier is the service's status value verbatim
+   (`fa-media-badge--${object.status}`), so `pending_upload` keeps the
+   underscore the API uses rather than a kebab-case rename the runtime would
+   never emit. `.stylelintrc.json` admits it for that reason. */
 .fa-media-badge--processing,
 .fa-media-badge--uploaded,
 .fa-media-badge--pending_upload {
@@ -232,15 +237,11 @@
 
 .fa-media-danger,
 .fa-media-danger-zone {
-  color: var(--fa-media-danger-fg);
-}
-
-.fa-media-danger-zone {
-  border-color: var(--fa-media-badge-failed-bg);
   margin-top: 1.5rem;
   padding: 1rem;
   border: 1px solid var(--fa-media-badge-failed-bg);
   border-radius: 0.5rem;
+  color: var(--fa-media-danger-fg);
 }
 
 .fa-media-panel [role="alert"] {
@@ -468,6 +469,7 @@
   flex-shrink: 0;
   width: 100%;
   max-height: 45vh;
+
   /* Required for the scroll above to work once the pane is a stretched flex
      item: without it the item refuses to shrink below its content height. */
   min-height: 0;

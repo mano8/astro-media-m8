@@ -111,6 +111,19 @@ folding it the correct call rather than a tidying one.
 
 ### Changed
 
+- **`MediaLibrary.tsx` is split into modules, and the largest components are
+  decomposed.** The file had grown to 1224 non-comment lines and carried the
+  library, its tree pane, its transfer panel, the whole label contract and every
+  Tailwind token class in one place; it is now `mediaLibraryLabels`,
+  `mediaLibraryStyles`, `categoryBranch`, `MediaCategoryTreePane`,
+  `MediaTransferPanel` and a 507-line `MediaLibrary`. The same pass extracts
+  subcomponents and hooks from `CategoryMultiSelectView`, `CategoryManagerRow`,
+  `CategoryManager`, `MediaObjectPreview` and the three library registry skins,
+  and splits the two oversized tree-pane tests into focused cases. **No export,
+  prop, class name or rendered markup changes** — `MediaLibraryLabels` is still
+  exported from `MediaLibrary.js`, and all 237 tests pass unchanged apart from
+  the ones deliberately split. It is a Codacy complexity gate the fleet keeps
+  green, not a redesign.
 - **The category tree pane opens with every branch collapsed.** It used to
   render the whole tree expanded, which on a deep hierarchy filled the pane
   with descendants before the user had chosen a branch and made the pane its

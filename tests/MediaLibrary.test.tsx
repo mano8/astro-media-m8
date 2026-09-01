@@ -211,8 +211,60 @@ async function openTree(container: HTMLElement) {
   });
 }
 
+/**
+ * `querySelector` that fails the test where the element is missing instead of
+ * silently asserting against `undefined.className` — which reads as a class
+ * assertion failing when the element was never rendered at all.
+ */
+function classNamesOf(root: ParentNode, selector: string): string {
+  const found = root.querySelector<HTMLElement>(selector);
+  if (!found) throw new Error(`no element matching ${selector}`);
+  return found.className;
+}
+
+/** The accessible-name element a treeitem points at with `aria-labelledby`. */
+function labelElementOf(container: HTMLElement, name: string): HTMLElement {
+  const ids = (treeItemByName(container, name).getAttribute("aria-labelledby") ?? "").split(" ");
+  const label = container.ownerDocument.getElementById(ids[0] ?? "");
+  if (!label) throw new Error(`tree row ${name} names no label element`);
+  return label;
+}
+
 function lastListCall() {
   return apiMocks.listObjects.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+}
+
+/**
+ * A library switched to the tree view over a two-level category tree, with
+ * every branch still shut — the pane's own default. The tests that need
+ * `Invoices` open say so themselves, so "what the pane does on first render"
+ * stays visible in the test that asserts it.
+ */
+async function renderTreeLibrary() {
+  const tree = [
+    categoryNode(10, "Invoices", [categoryNode(11, "2025"), categoryNode(12, "2026")]),
+    categoryNode(20, "Contracts")
+  ];
+  apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
+  apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 4 });
+
+  const view = render(
+    <QueryClientProvider client={createClient()}>
+      <MediaLibrary />
+    </QueryClientProvider>
+  );
+  await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
+  await openTree(view.container);
+  await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4));
+  return view;
+}
+
+/** `renderTreeLibrary` plus the `Invoices` branch opened by pointer. */
+async function renderTreeLibraryExpanded() {
+  const view = await renderTreeLibrary();
+  click(toggleByName(view.container, "Invoices"));
+  await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
+  return view;
 }
 
 beforeEach(() => {
@@ -642,70 +694,68 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 
-  it("exposes the tree pane as a role=tree matching the shared tree-view a11y contract", async () => {
-    const tree = [
-      categoryNode(10, "Invoices", [categoryNode(11, "2025"), categoryNode(12, "2026")]),
-      categoryNode(20, "Contracts")
-    ];
-    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
-    apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 4 });
+  it("opens the tree pane with every branch shut", async () => {
+    // two pseudo-rows and two roots, no `role="group"` at all, and the parent
+    // says so on `aria-expanded`
+    const view = await renderTreeLibrary();
 
-    const view = render(
-      <QueryClientProvider client={createClient()}>
-        <MediaLibrary />
-      </QueryClientProvider>
-    );
-    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
-    await openTree(view.container);
-    // the pane opens with every branch shut: two pseudo-rows and two roots,
-    // no `role="group"` at all, and the parent says so on `aria-expanded`
-    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4));
     expect(view.container.querySelectorAll('ul[role="group"]')).toHaveLength(0);
     expect(treeItemByName(view.container, "Invoices").getAttribute("aria-expanded")).toBe("false");
     expect(view.container.querySelector('li[role="treeitem"] [id$="-label"]')?.textContent).toBe("All media");
 
-    click(toggleByName(view.container, "Invoices"));
-    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
+    view.unmount();
+  });
+
+  it("lays the tree pane and its results column out responsively", async () => {
+    const view = await renderTreeLibraryExpanded();
+    const container = view.container;
 
     // the pane stacks above the list on narrow viewports and only becomes a
     // second column at `lg` — at `md` a category pane and a six-column table
-    // shared 768px and both were cramped
-    const layout = view.container.querySelector<HTMLElement>(".fa-media-tree-layout");
-    expect(layout?.className).toContain("flex-col");
-    expect(layout?.className).toContain("lg:flex-row");
-    expect(layout?.className).not.toContain("md:flex-row");
-    // both columns stretch, which is what makes the pane share the results
-    // column's height rather than hugging its own content
-    expect(layout?.className).toContain("lg:items-stretch");
-    expect(layout?.className).not.toContain("items-start");
-    const pane = view.container.querySelector<HTMLElement>(".fa-media-tree-pane");
-    expect(pane?.className).toContain("max-h-[45vh]");
+    // shared 768px and both were cramped. Both columns stretch, which is what
+    // makes the pane share the results column's height rather than hugging its
+    // own content.
+    const layout = classNamesOf(container, ".fa-media-tree-layout");
+    expect(layout).toContain("flex-col");
+    expect(layout).toContain("lg:flex-row");
+    expect(layout).not.toContain("md:flex-row");
+    expect(layout).toContain("lg:items-stretch");
+    expect(layout).not.toContain("items-start");
+
     // width scales with the viewport between a readable floor and a cap that
-    // keeps the results column dominant, instead of a flat 16rem at every size
-    expect(pane?.className).toContain("lg:w-[clamp(16rem,24vw,26rem)]");
-    expect(pane?.className).not.toContain("w-64");
-    // a stretched flex item will not shrink below its content without this, so
-    // the pane's own scroll would never engage
-    expect(pane?.className).toContain("min-h-0");
-    // both axes scroll, and the list and its labels are what can outgrow the
-    // pane horizontally — a truncating label could never widen it, so the
-    // horizontal bar would have had nothing to reveal
-    expect(pane?.className).toContain("overflow-auto");
-    expect(pane?.className).not.toContain("overflow-y-auto");
-    expect(view.container.querySelector('ul[role="tree"]')?.className).toContain("min-w-max");
+    // keeps the results column dominant, instead of a flat 16rem at every size.
+    // `min-h-0` is required for the pane's own scroll to engage: a stretched
+    // flex item will not shrink below its content without it. Both axes scroll,
+    // and the list and its labels are what can outgrow the pane horizontally —
+    // a truncating label could never widen it, so the horizontal bar would have
+    // had nothing to reveal.
+    const pane = classNamesOf(container, ".fa-media-tree-pane");
+    expect(pane).toContain("max-h-[45vh]");
+    expect(pane).toContain("lg:w-[clamp(16rem,24vw,26rem)]");
+    expect(pane).not.toContain("w-64");
+    expect(pane).toContain("min-h-0");
+    expect(pane).toContain("overflow-auto");
+    expect(pane).not.toContain("overflow-y-auto");
+    expect(classNamesOf(container, 'ul[role="tree"]')).toContain("min-w-max");
+
+    const invoicesLabel = labelElementOf(container, "Invoices");
+    expect(invoicesLabel.className).toContain("whitespace-nowrap");
+    expect(invoicesLabel.className).not.toContain("truncate");
+
     // the results column scrolls its own table rather than squashing the six
     // columns or pushing the whole page sideways; the table's `min-w` is what
     // gives that bar something to reveal, since `width: 100%` alone cannot
     // exceed its wrapper
-    const scroller = view.container.querySelector<HTMLElement>(".fa-media-tree-results .fa-media-table-scroll");
-    expect(scroller?.className).toContain("overflow-x-auto");
-    expect(scroller?.querySelector("table.fa-media-table")?.className).toContain("min-w-[34rem]");
-    expect(view.container.querySelector<HTMLElement>(".fa-media-tree-results")?.className).toContain("min-h-0");
-    const invoicesLabel = view.container.ownerDocument.getElementById(
-      (treeItemByName(view.container, "Invoices").getAttribute("aria-labelledby") ?? "").split(" ")[0] ?? ""
-    );
-    expect(invoicesLabel?.className).toContain("whitespace-nowrap");
-    expect(invoicesLabel?.className).not.toContain("truncate");
+    const scrollSelector = ".fa-media-tree-results .fa-media-table-scroll";
+    expect(classNamesOf(container, scrollSelector)).toContain("overflow-x-auto");
+    expect(classNamesOf(container, `${scrollSelector} table.fa-media-table`)).toContain("min-w-[34rem]");
+    expect(classNamesOf(container, ".fa-media-tree-results")).toContain("min-h-0");
+
+    view.unmount();
+  });
+
+  it("exposes the tree pane as a role=tree matching the shared tree-view a11y contract", async () => {
+    const view = await renderTreeLibraryExpanded();
 
     // roles: one tree, named by the pane heading, with a group per open branch
     const treeRoot = view.container.querySelector<HTMLElement>('ul[role="tree"]');
@@ -760,26 +810,10 @@ describe("MediaLibrary", () => {
     view.unmount();
   });
 
-  it("navigates the tree pane by keyboard and selects the focused branch", async () => {
-    const tree = [
-      categoryNode(10, "Invoices", [categoryNode(11, "2025"), categoryNode(12, "2026")]),
-      categoryNode(20, "Contracts")
-    ];
-    apiMocks.listObjects.mockResolvedValue(page([makeObject(1)]));
-    apiMocks.getCategoryTree.mockResolvedValue({ data: tree, count: 4 });
-
-    const view = render(
-      <QueryClientProvider client={createClient()}>
-        <MediaLibrary />
-      </QueryClientProvider>
-    );
-    await waitFor(() => expect(apiMocks.listObjects).toHaveBeenCalled());
-    await openTree(view.container);
+  it("walks the tree pane with the arrow keys", async () => {
     // opened by pointer first: the pane's default is every branch shut, and the
     // walk below needs `Invoices` open to have anything to step into
-    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(4));
-    click(toggleByName(view.container, "Invoices"));
-    await waitFor(() => expect(view.container.querySelectorAll('li[role="treeitem"]')).toHaveLength(6));
+    const view = await renderTreeLibraryExpanded();
 
     const active = () => view.container.ownerDocument.activeElement;
     const all = treeItemByName(view.container, "All media");
@@ -822,6 +856,12 @@ describe("MediaLibrary", () => {
     expect(active()).toBe(treeItemByName(view.container, "All media"));
     press(treeItemByName(view.container, "All media"), "ArrowUp");
     expect(active()).toBe(treeItemByName(view.container, "All media"));
+
+    view.unmount();
+  });
+
+  it("selects the focused branch from the keyboard and filters the list beside it", async () => {
+    const view = await renderTreeLibraryExpanded();
 
     // Enter selects the focused branch and filters the list beside it
     press(treeItemByName(view.container, "Contracts"), "Enter");

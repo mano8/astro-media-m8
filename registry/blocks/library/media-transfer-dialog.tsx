@@ -45,6 +45,110 @@ export interface MediaTransferDialogProps {
   title?: string;
 }
 
+type Transfer = ReturnType<typeof useMediaTransfer>;
+
+/** The export job's own line: a manifest download, an archive link, or progress. */
+function ExportStatus({ transfer }: { transfer: Transfer }) {
+  const job = transfer.exportJob;
+  if (!job) return null;
+  if (job.status === "completed" && job.download_url) {
+    return (
+      <p role="status">
+        <a href={job.download_url} download>
+          Download archive ({job.object_count} objects)
+        </a>
+      </p>
+    );
+  }
+  return <p role="status">{job.status === "failed" ? "Export failed." : `Export ${job.status}…`}</p>;
+}
+
+function ExportOptions({
+  form,
+  transfer,
+  exportScopeLabel,
+}: {
+  form: ReturnType<typeof useZodDialogForm<TransferFormValues>>;
+  transfer: Transfer;
+  exportScopeLabel?: string;
+}) {
+  return (
+    <section className="grid gap-3" aria-label="Export options">
+      {exportScopeLabel ? <p className="text-sm text-muted-foreground">Scope: {exportScopeLabel}</p> : null}
+      <label className="grid gap-1 text-sm font-medium">
+        Format
+        <select className="rounded-md border border-input bg-background px-3 py-2" {...form.register("exportFormat")}>
+          <option value="manifest">Manifest (JSON)</option>
+          <option value="archive">Archive (ZIP)</option>
+        </select>
+      </label>
+      {transfer.exportError ? <p role="alert">Export failed.</p> : null}
+      {transfer.manifest ? (
+        <Button type="button" variant="outline" onClick={() => transfer.downloadManifest()}>
+          Download manifest ({transfer.manifest.objects.length} objects)
+        </Button>
+      ) : null}
+      <ExportStatus transfer={transfer} />
+    </section>
+  );
+}
+
+/** The per-object outcome table an import answers with. */
+function ImportReport({ transfer }: { transfer: Transfer }) {
+  const report = transfer.importReport;
+  if (!report) return null;
+  return (
+    <div className="grid gap-2">
+      <p role="status">
+        {report.created} created, {report.linked} linked, {report.skipped} skipped, {report.failed} failed.
+      </p>
+      <DataTable
+        columns={reportColumns}
+        data={report.objects}
+        rowCount={report.objects.length}
+        page={1}
+        pageSize={Math.max(report.objects.length, 1)}
+        onPageChange={() => {}}
+        onPageSizeChange={() => {}}
+        getRowId={(row) => row.source_id}
+        labels={{ empty: "No imported rows." }}
+      />
+    </div>
+  );
+}
+
+function ImportOptions({
+  form,
+  transfer,
+  onFileChange,
+}: {
+  form: ReturnType<typeof useZodDialogForm<TransferFormValues>>;
+  transfer: Transfer;
+  onFileChange: (file: File | null) => void;
+}) {
+  return (
+    <section className="grid gap-3" aria-label="Import options">
+      <label className="grid gap-1 text-sm font-medium">
+        Format
+        <select className="rounded-md border border-input bg-background px-3 py-2" {...form.register("importFormat")}>
+          <option value="manifest">Manifest (JSON)</option>
+          <option value="archive">Archive (ZIP)</option>
+        </select>
+      </label>
+      <label className="grid gap-1 text-sm font-medium">
+        File
+        <input
+          type="file"
+          accept={form.watch("importFormat") === "archive" ? ".zip" : ".json"}
+          onChange={(event) => onFileChange(event.currentTarget.files?.[0] ?? null)}
+        />
+      </label>
+      {transfer.importError ? <p role="alert">Import failed.</p> : null}
+      <ImportReport transfer={transfer} />
+    </section>
+  );
+}
+
 export function MediaTransferDialog({
   filters,
   exportScopeLabel,
@@ -72,7 +176,6 @@ export function MediaTransferDialog({
   };
 
   const submitting = operation === "export" ? transfer.exportPending : transfer.importPending;
-  const report = transfer.importReport;
 
   return (
     <DialogForm
@@ -97,60 +200,9 @@ export function MediaTransferDialog({
       </fieldset>
 
       {operation === "export" ? (
-        <section className="grid gap-3" aria-label="Export options">
-          {exportScopeLabel ? <p className="text-sm text-muted-foreground">Scope: {exportScopeLabel}</p> : null}
-          <label className="grid gap-1 text-sm font-medium">
-            Format
-            <select className="rounded-md border border-input bg-background px-3 py-2" {...form.register("exportFormat")}>
-              <option value="manifest">Manifest (JSON)</option>
-              <option value="archive">Archive (ZIP)</option>
-            </select>
-          </label>
-          {transfer.exportError ? <p role="alert">Export failed.</p> : null}
-          {transfer.manifest ? (
-            <Button type="button" variant="outline" onClick={() => transfer.downloadManifest()}>
-              Download manifest ({transfer.manifest.objects.length} objects)
-            </Button>
-          ) : null}
-          {transfer.exportJob ? (
-            <p role="status">
-              {transfer.exportJob.status === "completed" && transfer.exportJob.download_url ? (
-                <a href={transfer.exportJob.download_url} download>Download archive ({transfer.exportJob.object_count} objects)</a>
-              ) : transfer.exportJob.status === "failed" ? "Export failed." : `Export ${transfer.exportJob.status}…`}
-            </p>
-          ) : null}
-        </section>
+        <ExportOptions form={form} transfer={transfer} exportScopeLabel={exportScopeLabel} />
       ) : (
-        <section className="grid gap-3" aria-label="Import options">
-          <label className="grid gap-1 text-sm font-medium">
-            Format
-            <select className="rounded-md border border-input bg-background px-3 py-2" {...form.register("importFormat")}>
-              <option value="manifest">Manifest (JSON)</option>
-              <option value="archive">Archive (ZIP)</option>
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-medium">
-            File
-            <input type="file" accept={form.watch("importFormat") === "archive" ? ".zip" : ".json"} onChange={(event) => setImportFile(event.currentTarget.files?.[0] ?? null)} />
-          </label>
-          {transfer.importError ? <p role="alert">Import failed.</p> : null}
-          {report ? (
-            <div className="grid gap-2">
-              <p role="status">{report.created} created, {report.linked} linked, {report.skipped} skipped, {report.failed} failed.</p>
-              <DataTable
-                columns={reportColumns}
-                data={report.objects}
-                rowCount={report.objects.length}
-                page={1}
-                pageSize={Math.max(report.objects.length, 1)}
-                onPageChange={() => {}}
-                onPageSizeChange={() => {}}
-                getRowId={(row) => row.source_id}
-                labels={{ empty: "No imported rows." }}
-              />
-            </div>
-          ) : null}
-        </section>
+        <ImportOptions form={form} transfer={transfer} onFileChange={setImportFile} />
       )}
     </DialogForm>
   );

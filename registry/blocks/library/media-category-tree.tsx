@@ -115,27 +115,18 @@ export interface MediaCategoryTreeProps {
   className?: string;
 }
 
-export function MediaCategoryTree({
-  selection: controlledSelection,
-  onSelectionChange,
-  labels,
-  className,
-}: MediaCategoryTreeProps) {
-  const t = { ...DEFAULT_LABELS, ...labels };
-  const { tree, loading, error, reload } = useCategoryTree();
+/**
+ * Selection is optionally controlled: with `selection` supplied the caller owns
+ * it and the pane only reports changes, without it the pane tracks its own.
+ */
+function useCategorySelection(
+  controlledSelection: MediaCategorySelection | undefined,
+  onSelectionChange: ((selection: MediaCategorySelection) => void) | undefined,
+) {
   const [internalSelection, setInternalSelection] = React.useState<MediaCategorySelection>({
     kind: "all",
   });
-  const selection = controlledSelection ?? internalSelection;
 
-  const nodes = React.useMemo<TreeViewNode[]>(
-    () => [
-      { id: ALL_NODE_ID, label: t.all },
-      { id: UNCATEGORIZED_NODE_ID, label: t.uncategorized },
-      ...tree.map(categoryNodeToTreeViewNode),
-    ],
-    [tree, t.all, t.uncategorized],
-  );
   const handleSelect = React.useCallback(
     (node: TreeViewNode) => {
       const next = selectionFromNodeId(node.id);
@@ -147,9 +138,31 @@ export function MediaCategoryTree({
     [controlledSelection, onSelectionChange],
   );
 
-  const describeError = (fallback: string) =>
-    error instanceof Error && error.message ? error.message : fallback;
+  return { selection: controlledSelection ?? internalSelection, handleSelect };
+}
 
+function describeError(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+export function MediaCategoryTree({
+  selection: controlledSelection,
+  onSelectionChange,
+  labels,
+  className,
+}: MediaCategoryTreeProps) {
+  const t = { ...DEFAULT_LABELS, ...labels };
+  const { tree, loading, error, reload } = useCategoryTree();
+  const { selection, handleSelect } = useCategorySelection(controlledSelection, onSelectionChange);
+
+  const nodes = React.useMemo<TreeViewNode[]>(
+    () => [
+      { id: ALL_NODE_ID, label: t.all },
+      { id: UNCATEGORIZED_NODE_ID, label: t.uncategorized },
+      ...tree.map(categoryNodeToTreeViewNode),
+    ],
+    [tree, t.all, t.uncategorized],
+  );
   // The pseudo-nodes stay navigable even while the tree is loading, erroring,
   // or genuinely empty of user categories — this pane must never degenerate
   // to an empty box, matching the runtime tree view's own decision (`U7`).
@@ -162,7 +175,7 @@ export function MediaCategoryTree({
       {error ? (
         <StateError
           title={t.errorTitle}
-          description={describeError(t.errorTitle)}
+          description={describeError(error, t.errorTitle)}
           retryLabel={t.errorRetry}
           onRetry={() => void reload()}
         />

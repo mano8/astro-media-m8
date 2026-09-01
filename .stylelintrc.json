@@ -1,0 +1,7 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "selector-class-pattern": "^fa-[a-z0-9]+(?:-[a-z0-9]+)*(?:--[a-z0-9]+(?:[-_][a-z0-9]+)*)?$",
+    "media-feature-range-notation": "prefix"
+  }
+}
