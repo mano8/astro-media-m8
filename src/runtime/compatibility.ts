@@ -10,24 +10,23 @@ const MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS = new Set([
 // The service version range moves with media-service-m8's package version, which
 // reached 2.0.0 for the reader/writer role tiers and the anonymous PUBLIC read
 // surface. The contract moves to 1.1 for the additive UX API surface; the
-// service-version gate remains at 2.x because this plugin still targets the
-// same service release line. A pre-tier 1.x service is deliberately no longer
-// admitted: it cannot serve the authorization behavior this plugin's guards
-// assume.
-// The service version this client was actually exercised against: 2.1.1, the
-// single-object category-projection fix, whose OpenAPI is what every schema
-// here was diffed against in the same pass.
+// service-version gate widens to admit 3.x alongside 2.x because
+// media-service-m8 3.0.0 is an object-storage backend and env-var rename
+// (MinIO-specific `MINIO_*` shim removed in favor of provider-neutral `S3_*`)
+// with no change to the `1.1` HTTP contract this plugin models — so the range
+// move is additive (a minor here), not a major. A pre-tier 1.x service is
+// still refused: it cannot serve the authorization behavior this plugin's
+// guards assume.
+// The service version this client was actually exercised against: 3.0.0, the
+// media-sdk-m8 1.0.0 / media-service-m8 3.0.0 shim-removal cut, whose tree is
+// what every schema here was diffed against in the same pass.
 //
-// Written ahead of the 2.1.1 tag, deliberately and on the record — the same
-// ordering inversion the workspace matrix documents for the 2.1.0 image pins,
-// noted rather than hidden. It is safe *here* in a way a pin is not: this
-// constant resolves nothing and installs nothing. The gate is
-// MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE below, which already admits the whole
-// 2.x line, so a host pointed at the published 2.1.0 passes preflight
-// unchanged and this value never refuses it.
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "2.1.1";
+// The gate is MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE below, which admits the
+// whole 2.x line plus 3.x, so a host pointed at the published 2.1.0 passes
+// preflight unchanged and this value never refuses it.
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "3.0.0";
 export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "2.0.0";
-export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "3.0.0";
+export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "4.0.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;
 
 export type MediaServiceM8CompatibilityStatus = "compatible" | "incompatible" | "unknown";

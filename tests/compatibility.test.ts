@@ -45,7 +45,10 @@ describe("media-service-m8 compatibility", () => {
     // The pre-role-tier 1.x line is out of range on purpose, not by oversight.
     expect(isMediaServiceM8ServiceVersionCompatible("1.9.9")).toBe(false);
     expect(isMediaServiceM8ServiceVersionCompatible("1.0.0")).toBe(false);
-    expect(isMediaServiceM8ServiceVersionCompatible("3.0.0")).toBe(false);
+    // 3.x (the MINIO_* shim removal / S3_* rename, no contract change) is
+    // admitted; the exclusive maximum moved to 4.0.0 for it.
+    expect(isMediaServiceM8ServiceVersionCompatible("3.0.0")).toBe(true);
+    expect(isMediaServiceM8ServiceVersionCompatible("4.0.0")).toBe(false);
     expect(isMediaServiceM8ServiceVersionCompatible("nope")).toBe(false);
     expect(getMediaServiceM8Compatibility({ service_version: "2.0.0" }).status).toBe("compatible");
     expect(getMediaServiceM8Compatibility({ version: "0.9.0" }).status).toBe("incompatible");
@@ -86,9 +89,9 @@ describe("media-service-m8 compatibility", () => {
     expect(() => assertMediaServiceM8Compatibility(meta)).not.toThrow();
 
     // Adjacent out-of-range service version on the same payload shape.
-    expect(getMediaServiceM8Compatibility({ ...meta, version: "3.0.0" })).toMatchObject({
+    expect(getMediaServiceM8Compatibility({ ...meta, version: "4.0.0" })).toMatchObject({
       status: "incompatible",
-      serviceVersion: "3.0.0"
+      serviceVersion: "4.0.0"
     });
   });
 

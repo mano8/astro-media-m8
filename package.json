@@ -1,6 +1,6 @@
 {
   "name": "@mano8/astro-media-m8",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Astro integration and headless client for media-service-m8.",
   "type": "module",
   "license": "MIT",
@@ -115,7 +115,7 @@
   },
   "mediaServiceM8": {
     "contract": "media-service-m8@1.1",
-    "testedServiceVersion": "2.1.1",
-    "serviceVersionRange": ">=2.0.0 <3.0.0"
+    "testedServiceVersion": "3.0.0",
+    "serviceVersionRange": ">=2.0.0 <4.0.0"
   }
 }

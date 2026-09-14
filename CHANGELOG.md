@@ -11,6 +11,26 @@ service line, so the contract can move without moving the major.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-14 · media-service 3.x admitted (additive)
+
+**Minor bump.** `media-service-m8` `3.0.0` ships an object-storage backend and
+env-var rename — the `MINIO_*` deprecation shim is removed in favor of the
+provider-neutral `S3_*` settings — with no change to the `1.1` HTTP contract
+this plugin models. Widening the supported range to admit it alongside the
+existing 2.x line is therefore additive, not breaking.
+
+### Changed
+
+- `MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE` `"3.0.0"` → `"4.0.0"`;
+  `MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE` now `>=2.0.0 <4.0.0`.
+  `MEDIA_SERVICE_M8_MIN_SERVICE_VERSION` stays `"2.0.0"` — the published
+  `2.1.0` service remains a valid peer.
+- `MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION` `"2.1.1"` → `"3.0.0"`, the
+  media-sdk-m8 `1.0.0` / media-service-m8 `3.0.0` shim-removal cut this
+  client's schemas were diffed against.
+- `package.json` `mediaServiceM8.serviceVersionRange` →
+  `">=2.0.0 <4.0.0"`, `mediaServiceM8.testedServiceVersion` → `"3.0.0"`.
+
 ## [2.0.0] - 2026-08-30 · media-service 2.x repoint, auth generation jump
 
 **Major bump, for two independent breaking reasons.**
