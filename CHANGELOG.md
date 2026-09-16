@@ -11,6 +11,34 @@ service line, so the contract can move without moving the major.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-09-16 · tracks media-service 3.0.1
+
+**Minor bump.** Tracks the `media-service-m8` `3.0.1` patch release. The
+supported contract stays `media-service-m8@1.1`, range `>=2.0.0 <4.0.0` — no
+contract repoint, so this is not a major; a minor rather than a patch on the
+same reasoning the fleet's auth client uses for its tracking releases (an
+exported compatibility constant changes value).
+
+### Changed
+
+- `MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION` and `package.json`'s
+  `mediaServiceM8.testedServiceVersion` move `3.0.0` → `3.0.1`. `3.0.1` fixes
+  the service's hard purge, which answered `500` for any soft-deleted object
+  that had ever had a variant generated (`media_variant` / `variant_job`
+  reference `media_object` without `ON DELETE CASCADE`); it is a maintenance
+  code path — nothing served over HTTP changes, no schema here moves — so
+  this release exists only to keep the tracked version in step with the
+  fleet's compose pins (`media-service-m8` and `fa-ui-m8` stacks re-pinned
+  to `3.0.1` the same day).
+- `README.md` names `3.0.1` as the tested service version.
+
+### Unchanged, deliberately
+
+- `MEDIA_SERVICE_M8_MIN_SERVICE_VERSION` stays `2.0.0` and
+  `MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE` stays `4.0.0`: the range
+  admits `3.0.1` already, and nothing on the `2.x`/`3.x` line has touched the
+  `1.1` contract this plugin speaks.
+
 ## [2.1.0] - 2026-09-14 · media-service 3.x admitted (additive)
 
 **Minor bump.** `media-service-m8` `3.0.0` ships an object-storage backend and
