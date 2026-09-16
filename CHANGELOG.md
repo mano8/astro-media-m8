@@ -30,6 +30,27 @@ existing 2.x line is therefore additive, not breaking.
   client's schemas were diffed against.
 - `package.json` `mediaServiceM8.serviceVersionRange` →
   `">=2.0.0 <4.0.0"`, `mediaServiceM8.testedServiceVersion` → `"3.0.0"`.
+- **The required `@mano8/astro-auth-m8` peer is repointed `^2.4.1` → `^2.6.0`**
+  in both `peerDependencies` and `devDependencies`; the lockfile resolves
+  `astro-auth-m8-2.6.0.tgz`, the registry's current `latest`. `2.5.0` and
+  `2.6.0` are tracking releases — they move the auth plugin's tested
+  `fa-auth-m8` issuer version `2.0.0` → `2.2.1` (the JWKS `kid`/key-binding
+  remediation line the fleet's compose pins now run) and leave its
+  `fa-auth-m8@2.0` contract, minimum service version and peer ranges
+  unchanged, so nothing this plugin imports or adapts moves. The floor states
+  the pairing the fleet is verified against rather than one it merely
+  tolerates. `README.md`'s install section, which still read `^2.2.0`, now
+  names the same floor.
+
+### Fixed
+
+- `js-yaml` `4.3.1` → `4.3.2` in the lockfile (transitive, via `astro` /
+  `@astrojs/starlight` / `@astrojs/internal-helpers`), closing
+  [GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh)
+  (high: `maxTotalMergeKeys` does not bound CPU use for empty merge sources),
+  which had turned CI's `npm audit --audit-level=high` gate red on this
+  branch. No manifest range changes; the patch is inside every declaring
+  package's existing range.
 
 ## [2.0.0] - 2026-08-30 · media-service 2.x repoint, auth generation jump
 

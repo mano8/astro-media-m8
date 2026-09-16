@@ -65,7 +65,7 @@ elsewhere.
 npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 ```
 
-`@mano8/astro-auth-m8` is a required peer at **`^2.2.0` or newer**:
+`@mano8/astro-auth-m8` is a required peer at **`^2.6.0` or newer**:
 `media-service-m8` only accepts `fa-auth-m8`-issued tokens, so the plugin's auth
 adapter must be backed by `fa-auth-m8` (the official plugin, or a custom adapter
 that obtains those tokens). A 1.x auth is not supported — upgrade auth first, or
