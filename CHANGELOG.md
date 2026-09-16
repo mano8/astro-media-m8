@@ -11,6 +11,47 @@ service line, so the contract can move without moving the major.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-14 · media-service 3.x admitted (additive)
+
+**Minor bump.** `media-service-m8` `3.0.0` ships an object-storage backend and
+env-var rename — the `MINIO_*` deprecation shim is removed in favor of the
+provider-neutral `S3_*` settings — with no change to the `1.1` HTTP contract
+this plugin models. Widening the supported range to admit it alongside the
+existing 2.x line is therefore additive, not breaking.
+
+### Changed
+
+- `MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE` `"3.0.0"` → `"4.0.0"`;
+  `MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE` now `>=2.0.0 <4.0.0`.
+  `MEDIA_SERVICE_M8_MIN_SERVICE_VERSION` stays `"2.0.0"` — the published
+  `2.1.0` service remains a valid peer.
+- `MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION` `"2.1.1"` → `"3.0.0"`, the
+  media-sdk-m8 `1.0.0` / media-service-m8 `3.0.0` shim-removal cut this
+  client's schemas were diffed against.
+- `package.json` `mediaServiceM8.serviceVersionRange` →
+  `">=2.0.0 <4.0.0"`, `mediaServiceM8.testedServiceVersion` → `"3.0.0"`.
+- **The required `@mano8/astro-auth-m8` peer is repointed `^2.4.1` → `^2.6.0`**
+  in both `peerDependencies` and `devDependencies`; the lockfile resolves
+  `astro-auth-m8-2.6.0.tgz`, the registry's current `latest`. `2.5.0` and
+  `2.6.0` are tracking releases — they move the auth plugin's tested
+  `fa-auth-m8` issuer version `2.0.0` → `2.2.1` (the JWKS `kid`/key-binding
+  remediation line the fleet's compose pins now run) and leave its
+  `fa-auth-m8@2.0` contract, minimum service version and peer ranges
+  unchanged, so nothing this plugin imports or adapts moves. The floor states
+  the pairing the fleet is verified against rather than one it merely
+  tolerates. `README.md`'s install section, which still read `^2.2.0`, now
+  names the same floor.
+
+### Fixed
+
+- `js-yaml` `4.3.1` → `4.3.2` in the lockfile (transitive, via `astro` /
+  `@astrojs/starlight` / `@astrojs/internal-helpers`), closing
+  [GHSA-2883-xcg3-v3hh](https://github.com/advisories/GHSA-2883-xcg3-v3hh)
+  (high: `maxTotalMergeKeys` does not bound CPU use for empty merge sources),
+  which had turned CI's `npm audit --audit-level=high` gate red on this
+  branch. No manifest range changes; the patch is inside every declaring
+  package's existing range.
+
 ## [2.0.0] - 2026-08-30 · media-service 2.x repoint, auth generation jump
 
 **Major bump, for two independent breaking reasons.**

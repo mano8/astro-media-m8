@@ -25,7 +25,7 @@ assert(
   `unexpected contract: ${MEDIA_SERVICE_M8_CONTRACT}`
 );
 assert(
-  MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE === ">=2.0.0 <3.0.0",
+  MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE === ">=2.0.0 <4.0.0",
   `unexpected service range: ${MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE}`
 );
 
@@ -36,7 +36,11 @@ assert(
   "a service inside the supported range was not judged compatible"
 );
 assert(
-  getMediaServiceM8Compatibility({ version: "3.0.0" }).status === "incompatible",
+  assertMediaServiceM8Compatibility({ version: "3.0.0" }).status === "compatible",
+  "a service on the admitted 3.x line was not judged compatible"
+);
+assert(
+  getMediaServiceM8Compatibility({ version: "4.0.0" }).status === "incompatible",
   "a service past the supported major was not rejected"
 );
 
