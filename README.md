@@ -30,7 +30,7 @@ Pinned to `media-service-m8@1.1` (supported service-version range
 ## Backend contract
 
 This package targets the additive `media-service-m8@1.1` API contract and was
-tested against `media-service-m8` service version `3.0.0`. Supported backend
+tested against `media-service-m8` service version `3.0.1`. Supported backend
 service versions are `>=2.0.0 <4.0.0`.
 
 The contract axis and the service axis move independently, and only the range
