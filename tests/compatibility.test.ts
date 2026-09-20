@@ -1,12 +1,36 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "fs";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 import {
   assertMediaServiceM8Compatibility,
   getMediaServiceM8Compatibility,
   isMediaServiceM8ServiceVersionCompatible,
-  MEDIA_SERVICE_M8_CONTRACT
+  MEDIA_SERVICE_M8_CONTRACT,
+  MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE,
+  MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION
 } from "../src/runtime/compatibility.js";
 
+const packageJson = JSON.parse(
+  readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../package.json"), "utf-8")
+) as { mediaServiceM8?: { contract?: string; testedServiceVersion?: string; serviceVersionRange?: string } };
+
 describe("media-service-m8 compatibility", () => {
+  // The `mediaServiceM8` block is the published, machine-readable half of the
+  // same claim `compatibility.ts` enforces at runtime: a host or a fleet tool
+  // reads the package metadata, the browser preflight reads the constants.
+  // Nothing else keeps the two halves together, so a contract repoint that
+  // edited one and forgot the other would ship a package that advertises a
+  // range it does not check. Pinned against the constants rather than against
+  // literals so the next repoint has exactly one place to edit.
+  it("keeps the published mediaServiceM8 package metadata identical to the constants", () => {
+    expect(packageJson.mediaServiceM8).toEqual({
+      contract: MEDIA_SERVICE_M8_CONTRACT,
+      testedServiceVersion: MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION,
+      serviceVersionRange: MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE
+    });
+  });
+
   it("returns unknown without metadata", () => {
     const result = getMediaServiceM8Compatibility();
     expect(result.status).toBe("unknown");
