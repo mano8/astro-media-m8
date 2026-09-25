@@ -33,6 +33,20 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
+      # A release publishes the tree its tag points at, so the tag must name the
+      # version that tree declares, or npm and the GitHub release disagree.
+      - name: Verify the release tag names the package version
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "::error::release tag $TAG does not name package.json version $version"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
@@ -61,5 +75,14 @@ jobs:
       - name: Verify npm package contents
         run: npm pack --dry-run
 
+      # Only a published release reaches npm. A manual dispatch rehearses the
+      # publish with --dry-run, as the Docker workflows build with push: false
+      # on dispatch; the npm environment's v* tag policy is the platform half
+      # of the same rule.
       - name: Publish to npm with Trusted Publishing
+        if: github.event_name == 'release'
         run: npm publish --access public --tag "${{ steps.dist-tag.outputs.tag }}"
+
+      - name: Rehearse the publish (manual dispatch)
+        if: github.event_name != 'release'
+        run: npm publish --dry-run --access public --tag "${{ steps.dist-tag.outputs.tag }}"
