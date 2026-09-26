@@ -57,6 +57,7 @@
     "preview:dev": "vite --config fixtures/preview/vite.config.ts",
     "preview:build": "tsc -p fixtures/preview/tsconfig.json --noEmit && vite build --config fixtures/preview/vite.config.ts",
     "verify:fleet-gates": "node scripts/verify-fleet-gates.mjs",
+    "verify:lock-integrity": "node scripts/verify-lock-integrity.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
     "verify:registry-drift": "node scripts/verify-registry-drift.mjs",
     "verify:starter-routes": "node scripts/verify-starter-routes.mjs",
