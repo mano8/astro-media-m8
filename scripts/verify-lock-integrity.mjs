@@ -35,6 +35,32 @@ export const REGISTRY = "https://registry.npmjs.org/";
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
 /**
+ * Why an entry's `resolved` is not a registry tarball, or `null` if it is.
+ *
+ * @param {unknown} resolved
+ * @returns {string | null}
+ */
+function resolvedReason(resolved) {
+  if (typeof resolved !== "string" || resolved === "") return "has no resolved";
+  if (resolved.startsWith("file:")) return `is a file: source (${resolved})`;
+  if (!resolved.startsWith(REGISTRY)) return `resolves outside ${REGISTRY} (${resolved})`;
+  return null;
+}
+
+/**
+ * Why an entry's `integrity` is not sha512 throughout, or `null` if it is.
+ *
+ * @param {unknown} integrity
+ * @returns {string | null}
+ */
+function integrityReason(integrity) {
+  if (typeof integrity !== "string" || integrity.trim() === "") return "has no integrity";
+  const weak = integrity.trim().split(/\s+/).filter((hash) => !hash.startsWith("sha512-"));
+  if (weak.length === 0) return null;
+  return `has a non-sha512 integrity (${weak.map((hash) => hash.split("-")[0]).join(", ")})`;
+}
+
+/**
  * Why one `packages` entry is not pinned to the registry, or `[]` if it is.
  *
  * @param {string} key
@@ -51,24 +77,7 @@ function entryReasons(key, entry) {
   if (entry.link === true) {
     return [`is a link to ${JSON.stringify(entry.resolved)}`];
   }
-  const reasons = [];
-  const { resolved, integrity } = entry;
-  if (typeof resolved !== "string" || resolved === "") {
-    reasons.push("has no resolved");
-  } else if (resolved.startsWith("file:")) {
-    reasons.push(`is a file: source (${resolved})`);
-  } else if (!resolved.startsWith(REGISTRY)) {
-    reasons.push(`resolves outside ${REGISTRY} (${resolved})`);
-  }
-  if (typeof integrity !== "string" || integrity.trim() === "") {
-    reasons.push("has no integrity");
-  } else {
-    const weak = integrity.trim().split(/\s+/).filter((hash) => !hash.startsWith("sha512-"));
-    if (weak.length > 0) {
-      reasons.push(`has a non-sha512 integrity (${weak.map((hash) => hash.split("-")[0]).join(", ")})`);
-    }
-  }
-  return reasons;
+  return [resolvedReason(entry.resolved), integrityReason(entry.integrity)].filter((reason) => reason !== null);
 }
 
 /**
