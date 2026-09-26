@@ -50,6 +50,15 @@ describe("npm publish workflow", () => {
     expect(STEPS.indexOf(check as string)).toBeLessThan(publishAt);
   });
 
+  it("verifies the lock before it installs what it publishes", () => {
+    // `B37-publish-lock-guard` (`G36`): `npm ci` installs an entry with no
+    // `integrity` unchecked, and this job builds the tarball from that tree.
+    const guardAt = STEPS.findIndex((step) => step.includes("npm run verify:lock-integrity"));
+    const installAt = STEPS.findIndex((step) => /\brun: npm ci\b/.test(step));
+    expect(guardAt).toBeGreaterThanOrEqual(0);
+    expect(installAt).toBeGreaterThan(guardAt);
+  });
+
   it("links the environment to this package", () => {
     expect(WORKFLOW).toContain(`url: https://www.npmjs.com/package/${PACKAGE.name}\n`);
   });

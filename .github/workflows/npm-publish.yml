@@ -47,6 +47,12 @@ jobs:
             exit 1
           fi
 
+      # `B37-publish-lock-guard` (`G36`): this job builds the tarball from what
+      # it installs, and a `v*` tag need not sit on a commit CI verified, so it
+      # refuses an unpinned lock itself rather than trusting CI.yaml to have.
+      - name: Lock integrity
+        run: npm run verify:lock-integrity
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
