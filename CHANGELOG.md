@@ -11,6 +11,23 @@ service line, so the contract can move without moving the major.
 
 ## [Unreleased]
 
+### Added
+
+- **A lock that does not pin every package fails the build**
+  (`B34-npm-lock-integrity-guard`, finding `G34`(b)).
+  `scripts/verify-lock-integrity.mjs` (`npm run verify:lock-integrity`)
+  refuses a `package-lock.json` below `lockfileVersion` 3, or one with any
+  entry that lacks `integrity` or `resolved`, carries a non-`sha512` hash,
+  resolves outside `https://registry.npmjs.org/`, or is a link or `file:`
+  source, and names every offending key. `npm ci` installs an entry with no
+  `integrity` without checking a hash and says nothing, which is how `G33`
+  went unseen. CI runs it before `npm ci` in every job that installs.
+  `tests/lock-integrity.test.ts` proves each refusal against a fixture lock
+  and asserts this repository's own lock passes. The script is
+  dependency-free and byte-identical in the fleet's six npm repositories.
+  This lock already passed; the fixtures prove the red path. Only
+  `package.json`'s `scripts` gains an entry, so no release is owed.
+
 ## [2.3.0] - 2026-09-26 · tracks media-service 3.0.2
 
 **Minor bump.** Tracks the published `media-service-m8` `3.0.2` patch release
