@@ -17,16 +17,18 @@ const MEDIA_SERVICE_M8_COMPATIBLE_CONTRACTS = new Set([
 // move is additive (a minor here), not a major. A pre-tier 1.x service is
 // still refused: it cannot serve the authorization behavior this plugin's
 // guards assume.
-// The service version this client was actually exercised against: 3.0.1, the
-// hard-purge foreign-key patch on the media-sdk-m8 1.0.0 / media-service-m8
-// 3.0.0 shim-removal cut whose tree every schema here was diffed against. The
-// patch touches a maintenance code path only — nothing served changes — so
-// this value tracks the fleet's compose pins and gates nothing.
+// The service version this client was actually exercised against: 3.0.2, on
+// the media-sdk-m8 1.0.0 / media-service-m8 3.0.0 shim-removal cut whose tree
+// every schema here was diffed against. 3.0.1 fixed the hard purge; 3.0.2 is
+// the Debian patch layer, the UTC session clock and typing fixes (the upload
+// reject reason hoisted into a named alias with the same five values).
+// Nothing served changes, so this value tracks the fleet's compose pins and
+// gates nothing.
 //
 // The gate is MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE below, which admits the
 // whole 2.x line plus 3.x, so a host pointed at the published 2.1.0 passes
 // preflight unchanged and this value never refuses it.
-export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "3.0.1";
+export const MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION = "3.0.2";
 export const MEDIA_SERVICE_M8_MIN_SERVICE_VERSION = "2.0.0";
 export const MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE = "4.0.0";
 export const MEDIA_SERVICE_M8_SERVICE_VERSION_RANGE = `>=${MEDIA_SERVICE_M8_MIN_SERVICE_VERSION} <${MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE}`;

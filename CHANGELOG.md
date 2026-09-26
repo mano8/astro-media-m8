@@ -11,6 +11,33 @@ service line, so the contract can move without moving the major.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-09-26 · tracks media-service 3.0.2
+
+**Minor bump.** Tracks the published `media-service-m8` `3.0.2` patch release
+(`B31-plugin-tracking-tail`, finding `G32`). The supported contract stays
+`media-service-m8@1.1`, range `>=2.0.0 <4.0.0` — no contract repoint, so this
+is not a major; a minor rather than a patch on the same reasoning as `2.2.0`
+(an exported compatibility constant changes value).
+
+### Changed
+
+- `MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION` and `package.json`'s
+  `mediaServiceM8.testedServiceVersion` move `3.0.1` → `3.0.2`. Read from
+  `v3.0.1` to `v3.0.2` on the service, nothing this plugin models moved:
+  `3.0.2` is the fleet's Debian patch layer, a UTC PostgreSQL session clock,
+  and typing fixes — the upload reject `reason` is hoisted into a named
+  `UploadRejectReason` alias carrying the same five values. Dashboard activity
+  bounds now always carry a UTC offset; this package types them as strings,
+  so both forms parse.
+- `README.md` names `3.0.2` as the tested service version.
+
+### Unchanged, deliberately
+
+- `MEDIA_SERVICE_M8_MIN_SERVICE_VERSION` stays `2.0.0` and
+  `MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE` stays `4.0.0`, and the
+  contract stays `1.1`: the range already admits `3.0.2`, and no served shape
+  changed.
+
 ### Security
 
 - **npm is reached only from a published release**
