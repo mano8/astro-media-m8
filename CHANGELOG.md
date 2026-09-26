@@ -11,6 +11,51 @@ service line, so the contract can move without moving the major.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-09-26 · tracks media-service 3.0.2
+
+**Minor bump.** Tracks the published `media-service-m8` `3.0.2` patch release
+(`B31-plugin-tracking-tail`, finding `G32`). The supported contract stays
+`media-service-m8@1.1`, range `>=2.0.0 <4.0.0` — no contract repoint, so this
+is not a major; a minor rather than a patch on the same reasoning as `2.2.0`
+(an exported compatibility constant changes value).
+
+### Changed
+
+- `MEDIA_SERVICE_M8_TESTED_SERVICE_VERSION` and `package.json`'s
+  `mediaServiceM8.testedServiceVersion` move `3.0.1` → `3.0.2`. Read from
+  `v3.0.1` to `v3.0.2` on the service, nothing this plugin models moved:
+  `3.0.2` is the fleet's Debian patch layer, a UTC PostgreSQL session clock,
+  and typing fixes — the upload reject `reason` is hoisted into a named
+  `UploadRejectReason` alias carrying the same five values. Dashboard activity
+  bounds now always carry a UTC offset; this package types them as strings,
+  so both forms parse.
+- `README.md` names `3.0.2` as the tested service version.
+- Raised the `@mano8/astro-auth-m8` floor from `^2.6.0` to `^2.7.0` in both
+  `peerDependencies` and `devDependencies` (`B31-plugin-tracking-tail` leg 2).
+  `2.7.0` is the auth tracking release for `fa-auth-m8` `2.2.3`, published
+  before this one, and `package-lock.json` resolves its tarball. `README.md`
+  names the new peer floor, and corrects the `@mano8/astro-ui-m8` floor it
+  quoted (`^1.5.0`) to the declared `^1.5.1`.
+
+### Unchanged, deliberately
+
+- `MEDIA_SERVICE_M8_MIN_SERVICE_VERSION` stays `2.0.0` and
+  `MEDIA_SERVICE_M8_MAX_SERVICE_VERSION_EXCLUSIVE` stays `4.0.0`, and the
+  contract stays `1.1`: the range already admits `3.0.2`, and no served shape
+  changed.
+
+### Security
+
+- **npm is reached only from a published release**
+  (`B30-pre-publish-hardening` leg 5, finding `G25`). `npm-publish.yml` ran
+  `npm publish` on any `workflow_dispatch`, from any branch, into an `npm`
+  environment with no protection. A dispatch now
+  runs `npm publish --dry-run`; a release fails unless its tag, with the `v`
+  stripped, is `package.json`'s `version`; and the tarball ships
+  `CHANGELOG.md` from the next release (`G31`(b)).
+  `tests/publish-workflow.test.ts` locks each rule. The operator's `v*` tag
+  policy on the `npm` environment is the platform half of the same rule.
+
 ## [2.2.0] - 2026-09-16 · tracks media-service 3.0.1
 
 **Minor bump.** Tracks the `media-service-m8` `3.0.1` patch release. The
