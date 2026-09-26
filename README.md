@@ -65,12 +65,12 @@ elsewhere.
 npm i @mano8/astro-media-m8 @mano8/astro-auth-m8 zod
 ```
 
-`@mano8/astro-auth-m8` is a required peer at **`^2.7.0` or newer**:
+`@mano8/astro-auth-m8` is a required peer at **`^2.7.1` or newer**:
 `media-service-m8` only accepts `fa-auth-m8`-issued tokens, so the plugin's auth
 adapter must be backed by `fa-auth-m8` (the official plugin, or a custom adapter
 that obtains those tokens). A 1.x auth is not supported — upgrade auth first, or
 the install resolves nothing that satisfies the peer.
-`@mano8/astro-ui-m8` (`^1.5.1`) is a normal dependency because the media registry
+`@mano8/astro-ui-m8` (`^1.5.2`) is a normal dependency because the media registry
 skins compose the canonical shared table from its packaged registry output.
 `react`/`react-dom` are optional — only `./react`, `./hooks` and the starter
 views need them; `@tanstack/react-query` is a required peer once you use
