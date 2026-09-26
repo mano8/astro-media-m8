@@ -30,6 +30,12 @@ is not a major; a minor rather than a patch on the same reasoning as `2.2.0`
   bounds now always carry a UTC offset; this package types them as strings,
   so both forms parse.
 - `README.md` names `3.0.2` as the tested service version.
+- Raised the `@mano8/astro-auth-m8` floor from `^2.6.0` to `^2.7.0` in both
+  `peerDependencies` and `devDependencies` (`B31-plugin-tracking-tail` leg 2).
+  `2.7.0` is the auth tracking release for `fa-auth-m8` `2.2.3`, published
+  before this one, and `package-lock.json` resolves its tarball. `README.md`
+  names the new peer floor, and corrects the `@mano8/astro-ui-m8` floor it
+  quoted (`^1.5.0`) to the declared `^1.5.1`.
 
 ### Unchanged, deliberately
 
