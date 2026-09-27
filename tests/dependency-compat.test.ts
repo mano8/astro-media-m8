@@ -319,8 +319,13 @@ describe("verify-dependency-compat CLI", () => {
 });
 
 describe("this repository's installed tree", () => {
-  it("satisfies every range declared on it", () => {
-    const run = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8" });
+  // Without `npm_execpath` the gate must find the npm bundled beside this Node
+  // and run it through `process.execPath`, never a shell. CI's own
+  // `npm run verify:dependency-compat` step covers the `npm run` path.
+  it("satisfies every range declared on it, run outside npm", () => {
+    const env = { ...process.env };
+    delete env.npm_execpath;
+    const run = spawnSync(process.execPath, [SCRIPT], { encoding: "utf8", env });
     expect(run.stderr).toBe("");
     expect(run.status).toBe(0);
   }, 120_000);
