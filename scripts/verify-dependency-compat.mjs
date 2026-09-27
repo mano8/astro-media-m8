@@ -43,7 +43,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const FLEET_SCOPE = "@mano8/";
@@ -296,20 +296,37 @@ export function findCompatProblems(tree, waiverDocument) {
 }
 
 /**
- * Run `npm ls` in `cwd`, through the npm that is running this script when there is one.
+ * The `npm-cli.js` to run: the npm running this script under `npm run`, else
+ * the npm bundled beside this Node (`node_modules/npm` next to `node.exe` on
+ * Windows, `lib/node_modules/npm` above `bin/node` elsewhere). Run through
+ * `process.execPath`, never a shell.
+ *
+ * @returns {string | undefined}
+ */
+export function npmCliPath() {
+  const running = process.env.npm_execpath;
+  if (running && /\.c?js$/.test(running)) return running;
+  const nodeDir = dirname(process.execPath);
+  return [
+    join(nodeDir, "node_modules", "npm", "bin", "npm-cli.js"),
+    join(nodeDir, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js"),
+  ].find((candidate) => existsSync(candidate));
+}
+
+/**
+ * Run `npm ls` in `cwd`.
  *
  * @param {string} cwd
  * @returns {{ tree?: Record<string, any>, error?: string }}
  */
 function runNpmLs(cwd) {
-  const options = { cwd, encoding: "utf8", maxBuffer: 1024 * 1024 * 1024 };
-  const npmCli = process.env.npm_execpath;
-  const run =
-    npmCli && /\.c?js$/.test(npmCli)
-      ? spawnSync(process.execPath, [npmCli, ...NPM_LS_ARGS], options)
-      : // Outside `npm run` there is no npm-cli.js path; a shell finds `npm` (`npm.cmd`
-        // on Windows). The arguments are the constants above, so nothing is interpolated.
-        spawnSync(["npm", ...NPM_LS_ARGS].join(" "), { ...options, shell: true });
+  const npmCli = npmCliPath();
+  if (!npmCli) return { error: "cannot find npm-cli.js; run `npm run verify:dependency-compat` instead" };
+  const run = spawnSync(process.execPath, [npmCli, ...NPM_LS_ARGS], {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024 * 1024,
+  });
   try {
     return { tree: JSON.parse(run.stdout) };
   } catch {
